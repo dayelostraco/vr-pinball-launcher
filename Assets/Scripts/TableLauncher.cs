@@ -91,7 +91,7 @@ namespace VRLauncher
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = vpinballExecutable,
-                    Arguments = $"-minimized -Play \"{tablePath}\"",
+                    Arguments = $"-Play \"{tablePath}\"",
                     UseShellExecute = false,
                     WorkingDirectory = Path.GetDirectoryName(vpinballExecutable)
                 };
