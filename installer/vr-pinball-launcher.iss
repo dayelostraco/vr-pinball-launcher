@@ -47,6 +47,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}
+; Setup.exe's own icon. The installed app and the uninstall entry use the
+; icon Unity embeds in vr-launch.exe, so this only covers the installer.
+SetupIconFile=vr-pinball-launcher.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
