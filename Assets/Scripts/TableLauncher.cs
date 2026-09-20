@@ -30,6 +30,15 @@ namespace VRLauncher
         [DllImport("user32.dll")]
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
+        // Polled globally rather than through the Input System: while a table
+        // is running VPinballX holds focus, and Keyboard.current only reports
+        // keys when this window is focused - which is never, at the one moment
+        // the rescue hotkey is needed.
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        private const int VK_BACK = 0x08;
+
         // Window show commands
         private const int SW_RESTORE = 9;
         private const int SW_SHOW = 5;
@@ -48,6 +57,7 @@ namespace VRLauncher
         public float focusDelaySeconds = 2.0f;
 
         private Process currentProcess;
+        private bool backspaceWasPressed = false;
         private bool isTableRunning = false;
         private string currentTablePath;
         private Keyboard keyboard;
@@ -176,16 +186,33 @@ namespace VRLauncher
             {
                 UnityEngine.Debug.Log("Detected table exit via polling");
                 isTableRunning = false;
-                string exitedTable = currentTablePath;
                 currentTablePath = null;
+
+                // Restart XR here too. The Exited event normally does this, but
+                // when only the poll catches the exit the menu would otherwise
+                // come back with no VR session.
+                UnityEngine.Debug.Log("Table exited (polled) - Restarting Unity XR session...");
+                StartXR();
+
                 OnTableExited?.Invoke();
             }
 
-            // Allow manual exit with Backspace key - kills VPinballX and returns to menu
-            if (isTableRunning && keyboard != null && keyboard.backspaceKey.wasPressedThisFrame)
+            // Allow manual exit with Backspace - kills VPinballX and returns to
+            // the menu. Polled via GetAsyncKeyState so it still works while
+            // VPinballX has focus, which it always does while a table is up.
+            bool backspacePressed = (GetAsyncKeyState(VK_BACK) & 0x8000) != 0;
+            if (backspacePressed && !backspaceWasPressed)
             {
-                UnityEngine.Debug.Log("BACKSPACE pressed - Killing VPinballX process and returning to menu");
-                KillCurrentTable();
+                backspaceWasPressed = true;
+                if (isTableRunning)
+                {
+                    UnityEngine.Debug.Log("BACKSPACE pressed - Killing VPinballX process and returning to menu");
+                    KillCurrentTable();
+                }
+            }
+            else if (!backspacePressed)
+            {
+                backspaceWasPressed = false;
             }
         }
 
@@ -388,13 +415,58 @@ namespace VRLauncher
             }
         }
 
+        void OnApplicationQuit()
+        {
+            TerminateTableProcess("application quit");
+        }
+
         void OnDestroy()
         {
+            TerminateTableProcess("launcher shutdown");
+
             // Clean up process monitoring
             if (currentProcess != null)
             {
                 currentProcess.Exited -= OnProcessExited;
                 currentProcess.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Kills VPinballX on shutdown, without restarting XR or raising
+        /// OnTableExited - there is no menu left to return to. Process.Dispose
+        /// only releases the handle, so without this an orphaned VPinballX
+        /// keeps running and holds the OpenXR runtime.
+        /// </summary>
+        private void TerminateTableProcess(string reason)
+        {
+            if (currentProcess == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (currentProcess.HasExited)
+                {
+                    return;
+                }
+
+                // Drop the handler first: Kill() raises Exited on a pool
+                // thread, which would queue an XR restart mid-shutdown.
+                currentProcess.Exited -= OnProcessExited;
+
+                UnityEngine.Debug.Log($"Terminating VPinballX on {reason}");
+                currentProcess.Kill();
+                currentProcess.WaitForExit(2000);
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"Error terminating VPinballX on {reason}: {ex.Message}");
+            }
+            finally
+            {
+                isTableRunning = false;
             }
         }
     }
