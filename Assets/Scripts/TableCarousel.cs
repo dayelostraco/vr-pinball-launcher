@@ -476,10 +476,16 @@ namespace VRLauncher
                     tableIcon.sprite = sprite;
                     tableIcon.color = Color.white; // Reset color to white to show image properly
                 }
+                else
+                {
+                    Debug.LogWarning($"Could not decode wheel image (unsupported or corrupt): {imagePath}");
+                }
             }
-            catch (System.Exception)
+            catch (System.Exception ex)
             {
-                // Failed to load image, will use fallback color
+                // Falls back to the placeholder color, but say why - a silent
+                // catch here is indistinguishable from an unmatched table.
+                Debug.LogWarning($"Failed to load wheel image '{imagePath}': {ex.Message}");
             }
         }
 
