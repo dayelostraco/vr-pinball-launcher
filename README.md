@@ -173,10 +173,22 @@ The project includes these main scripts:
   - **Left Trigger** — Previous table
   - **Right Trigger** — Next table
   - **A Button** (right controller) — Launch selected table
+  - **Y Button** (left controller), held 2 seconds — Quit the launcher
 - **Keyboard**:
   - Left/Right Shift or Left/Right Arrow — Browse tables
   - Enter/Space — Launch table
   - Esc — Quit application
+
+**Y** is deliberately the same button that exits a table, so the rule is
+uniform: *Y exits whatever you are in* — table back to the launcher, launcher
+back to the desktop. It requires a hold rather than a tap so that a reflexive
+press on returning from a table doesn't close the launcher outright. The
+remaining time counts down in the menu while you hold, and releasing early
+cancels.
+
+Quitting is ignored while a table is running: there, Y belongs to VPX and
+exits the table. The launcher hands its XR session to VPinballX during play
+and cannot read the controllers at all, so the two uses can never overlap.
 
 Menu input is read through the XR Input System (OpenXR), so it works reliably with Quest/Touch and other OpenXR controllers.
 

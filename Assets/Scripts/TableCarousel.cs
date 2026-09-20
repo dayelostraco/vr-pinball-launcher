@@ -49,8 +49,17 @@ namespace VRLauncher
         private bool xrRightTriggerWasPressed = false;  // Right trigger - Next
         private bool xrLaunchWasPressed = false;         // Primary button (A) - Launch
 
+        // Y (left secondaryButton) quits. Y is already the exit-table button,
+        // so "Y exits whatever you are in" holds everywhere: table -> launcher,
+        // launcher -> desktop. Requires a deliberate hold so a reflexive tap on
+        // returning from a table does not close the launcher outright.
+        private float xrQuitHeldSince = -1f;
+        private bool xrQuitFired = false;
+        private string controlsBaseText = string.Empty;
+
         private const float TriggerPressThreshold = 0.7f;
         private const float TriggerReleaseThreshold = 0.4f;
+        private const float QuitHoldSeconds = 2f;
 
         [Header("UI References")]
         [Tooltip("Image to display the current table icon")]
@@ -135,9 +144,10 @@ namespace VRLauncher
             LoadTables();
 
             // Set controls text
+            controlsBaseText = "Left/Right Trigger to Browse : A to Launch : Hold Y to Quit";
             if (controlsText != null)
             {
-                controlsText.text = "Left/Right Trigger to Browse : A to Launch";
+                controlsText.text = controlsBaseText;
             }
         }
 
@@ -200,18 +210,109 @@ namespace VRLauncher
             if (escapePressed && !escapeWasPressed)
             {
                 escapeWasPressed = true;
-                if (tableLauncher == null || !tableLauncher.IsTableRunning())
+                if (!IsTableRunning())
                 {
-                    #if UNITY_EDITOR
-                    UnityEditor.EditorApplication.isPlaying = false;
-                    #else
-                    Application.Quit();
-                    #endif
+                    QuitLauncher("Escape");
                 }
             }
             else if (!escapePressed)
             {
                 escapeWasPressed = false;
+            }
+
+            // Hold Y (left controller) to quit. Checked here rather than in
+            // HandleInput so it still works when no tables were found.
+            HandleVRQuitInput();
+        }
+
+        bool IsTableRunning()
+        {
+            return tableLauncher != null && tableLauncher.IsTableRunning();
+        }
+
+        /// <summary>
+        /// Quits the launcher, matching the behaviour of the Escape key path.
+        /// </summary>
+        void QuitLauncher(string source)
+        {
+            UnityEngine.Debug.Log($"Quitting launcher ({source})");
+
+            #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+            #else
+            Application.Quit();
+            #endif
+        }
+
+        /// <summary>
+        /// Quits once the right controller's secondary button (B) has been held
+        /// for QuitHoldSeconds. Releasing early cancels, and the remaining time
+        /// is shown in the controls text so the hold is discoverable.
+        /// </summary>
+        void HandleVRQuitInput()
+        {
+            // Never quit out from under a running table. While a table is up
+            // Y is handled by VPX (exit table); this only applies in the menu.
+            if (IsTableRunning())
+            {
+                ResetQuitHold();
+                return;
+            }
+
+            EnsureXRControllers();
+
+            // Y is the LEFT controller's secondary button (left primary is X).
+            bool quitHeld;
+            if (!leftXRController.isValid ||
+                !leftXRController.TryGetFeatureValue(XRCommonUsages.secondaryButton, out quitHeld))
+            {
+                ResetQuitHold();
+                return;
+            }
+
+            if (!quitHeld)
+            {
+                ResetQuitHold();
+                return;
+            }
+
+            if (xrQuitHeldSince < 0f)
+            {
+                xrQuitHeldSince = Time.unscaledTime;
+            }
+
+            float held = Time.unscaledTime - xrQuitHeldSince;
+
+            if (held >= QuitHoldSeconds)
+            {
+                if (!xrQuitFired)
+                {
+                    xrQuitFired = true;
+                    QuitLauncher("Y held");
+                }
+                return;
+            }
+
+            if (controlsText != null)
+            {
+                float remaining = QuitHoldSeconds - held;
+                controlsText.text = $"Keep holding Y to quit... {remaining:0.0}s";
+            }
+        }
+
+        void ResetQuitHold()
+        {
+            if (xrQuitHeldSince < 0f)
+            {
+                return;
+            }
+
+            xrQuitHeldSince = -1f;
+            xrQuitFired = false;
+
+            if (controlsText != null && !string.IsNullOrEmpty(controlsBaseText))
+            {
+                controlsText.text = controlsBaseText;
             }
         }
 
