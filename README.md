@@ -12,9 +12,9 @@ A Steam VR launcher for Visual Pinball tables that provides an immersive VR menu
 
 ## Requirements
 
-- **Unity 2020.3 or later** (2021 LTS recommended)
+- **Unity 6000.6.2f1** (the version in `ProjectSettings/ProjectVersion.txt`; only needed to build from source)
 - **SteamVR** installed and running
-- **Visual Pinball X** with VPinballX_GL64.exe
+- **Visual Pinball X** — the BGFX builds (`VPinballX_BGFX64.exe`) and the older GL builds (`VPinballX_GL64.exe`) both work
 - **VR Headset** compatible with SteamVR
 
 ## Installation
@@ -95,7 +95,7 @@ Edit `launcher-config.json` in the same folder as the executable:
 - **vpinballExecutable**: Full path to VPinballX_GL64.exe
 - **tablesDirectory**: Directory containing your .vpx table files
 - **searchSubdirectories**: Whether to search subdirectories for tables
-- **wheelDirectory**: Directory containing wheel images for tables (supports both absolute paths like `C:\\Visual Pinball\\Media\\Wheel` or relative paths like `Media\\Wheel`). Images should be named to match the table files (e.g., `TableName.png` for `TableName.vpx`). Supported formats: PNG, JPG, JPEG.
+- **wheelDirectory**: Directory containing wheel images for tables (supports both absolute paths like `C:\\Visual Pinball\\Media\\Wheel` or relative paths like `Media\\Wheel`). Only the top level is scanned — `searchSubdirectories` applies to tables, not wheel art. Supported formats: PNG, JPG, JPEG. See [Table and Media Naming](#table-and-media-naming) for how images are matched to tables.
 - **menuDistance**: Distance (in meters) to position menu from camera
 - **menuHeight**: Height offset (in meters) for menu positioning
 - **menuScale**: Scale factor for the menu UI
@@ -104,6 +104,97 @@ Edit `launcher-config.json` in the same folder as the executable:
 - **controllerBridgePath**: Full path to the bridge executable to launch (e.g. the AutoHotkey executable, or a compiled bridge). Leave empty to disable.
 - **controllerBridgeArgs**: Command-line arguments for the bridge (e.g. the quoted full path to the AutoHotkey script).
 - **controllerBridgeWorkingDir**: Working directory for the bridge process. Leave empty to use the executable's folder. For the AutoHotkey script, set this to the folder containing `auto_oculus_touch.dll` so the script can load it.
+
+## Table and Media Naming
+
+Wheel art is matched to tables by filename. The launcher is tolerant of the
+decoration that table files usually carry, but naming tables to the community
+standard gives the most reliable results and keeps other pinball frontends
+happy at the same time.
+
+### The standard
+
+Name every table, and its media, as:
+
+```
+Title (Manufacturer Year).ext
+```
+
+For example:
+
+```
+Attack from Mars (Bally 1995).vpx
+Attack from Mars (Bally 1995).ini            <- VPX per-table settings
+Media\Wheel\Attack from Mars (Bally 1995).png
+```
+
+This is the same convention used by PinballX, PinUP Popper and PinballY, and
+by the community wheel packs, so a table named this way picks up its art
+automatically everywhere.
+
+Rules:
+
+- **Title** as it appears on the playfield, no leading article juggling.
+- **Manufacturer** and four-digit **Year** in a single parenthesised group.
+- **Drop author, version and VR-room decoration** — no `VPW v1.0.1`, no
+  `g5k VR 1.3.1`, no leading `VR ROOM`.
+- Use **spaces, not underscores**.
+
+### Renaming an existing table
+
+Three things share a table's basename, and all must be renamed together:
+
+| What | Example |
+|---|---|
+| The table | `Attack from Mars (Bally 1995).vpx` |
+| VPX per-table settings | `Attack from Mars (Bally 1995).ini` |
+| VPX texture cache | `Tables\cache\Attack from Mars (Bally 1995)\` |
+
+Renaming the `.vpx` alone orphans the other two. The cache folder is
+regenerated automatically, but the `.ini` holds your per-table settings and is
+not.
+
+High scores are safe either way: VPX stores them in `Tables\user\VPReg.stg`
+keyed by the table's internal script name, not by its filename.
+
+The trade-off is that the version is no longer visible in the filename. If you
+track which build of a table you have, record it somewhere else — the per-table
+`.ini` is a convenient place.
+
+### How matching actually works
+
+`TableScanner.LoadWheelImages()` tries three tiers in order and stops at the
+first hit, so a correctly named table matches on tier 1:
+
+1. **exact** — basenames equal, ignoring case.
+2. **normalized** — underscores become spaces, parentheses are dropped,
+   whitespace is collapsed, and a leading `VR ROOM` is removed.
+3. **title+year** — everything after the `(Manufacturer Year)` group is
+   discarded. Where a name has no parentheses, the last four-digit year token
+   is used as the cut point instead, so titles that *begin* with a year (such
+   as `2001 (Gottlieb 1971)`) survive intact.
+
+Where several images reduce to the same key, the least decorated filename
+wins, so `Twilight Zone (Bally 1993).png` is preferred over
+`Twilight Zone (Bally 1993) BW.png`.
+
+Tiers 2 and 3 mean an unrenamed table still finds its art — a table called
+`Star_Trek_The_Next_Generation_Williams_1993_VPW_Mod_v1.1.vpx` matches
+`Star Trek The Next Generation (Williams 1993).png`. Renaming is a
+convenience, not a requirement.
+
+### When art doesn't appear
+
+A table with no match falls back to a solid placeholder colour. Every miss is
+logged with the keys that were tried, so check the player log:
+
+```
+%USERPROFILE%\AppData\LocalLow\DefaultCompany\vr-launch\Player.log
+```
+
+Look for `Matched wheel image for ...` on success, or
+`No wheel image for '<table>' (tried exact, normalized '...', title+year '...')`
+on failure. Compare the reported keys against your actual filenames.
 
 ## Setup in Unity
 
@@ -299,19 +390,36 @@ vr-launch/
 
 ### Building
 
-1. **Configure Build Settings**:
-   - File > Build Settings
-   - Platform: Windows (64-bit)
-   - Add scene to build list
+`build.ps1` builds the player, compiles the installer and optionally deploys,
+in one command:
 
-2. **Player Settings**:
-   - Company Name, Product Name
-   - Icon (optional)
-   - XR Settings: Ensure VR is enabled
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.1.0
+```
 
-3. **Build**:
-   - Click "Build" and choose output folder
-   - Copy `launcher-config.json` to build folder
+| Flag | Effect |
+|---|---|
+| `-SkipInstaller` | Build the player only; skip Inno Setup |
+| `-Deploy` | Copy the player over an existing install, preserving `launcher-config.json`, `ControllerBridge\` and `Media\` |
+| `-UnityExe <path>` | Use a specific editor instead of the one in `ProjectVersion.txt` |
+
+Output lands in `Build\`, the installer in `dist\`, and the Unity log in
+`Logs\unity-build.log`. The log is deliberately kept out of `Build\`, because
+the installer ships everything under that folder.
+
+Notes on the build environment, all handled by the script but worth knowing:
+
+- `-nographics` is **not** used. It requires the `com.unity.editor.headless`
+  entitlement, and a Personal licence exits with code 198.
+- Unity Hub is started if it isn't running: a Personal licence is validated by
+  the Hub's licensing client, and batchmode otherwise fails with
+  `No valid Unity Editor license found`.
+- `Unity.exe` relaunches itself, so its exit code is meaningless for
+  automation. The script waits for the real editor process and verifies the
+  log and the output file instead.
+
+To build by hand instead: File > Build Profiles, Windows platform, Intel
+64-bit, then Build — and copy `launcher-config.json` into the output folder.
 
 ### Extending
 

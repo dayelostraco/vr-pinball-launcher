@@ -25,7 +25,8 @@ if (-not (Test-Path (Join-Path $BuildDir "vr-launch.exe"))) {
 # Locate the Inno Setup command-line compiler.
 $iscc = @(
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-    "C:\Program Files\Inno Setup 6\ISCC.exe"
+    "C:\Program Files\Inno Setup 6\ISCC.exe",
+    (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe")
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
     $cmd = Get-Command iscc -ErrorAction SilentlyContinue
