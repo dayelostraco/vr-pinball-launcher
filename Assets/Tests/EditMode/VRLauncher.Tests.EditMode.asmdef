@@ -4,7 +4,6 @@
     "references": [
         "VRLauncher.Core",
         "VRLauncher.Arcade",
-        "Unity.TextMeshPro",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
