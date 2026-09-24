@@ -53,7 +53,19 @@ namespace VRLauncher
                 return new LauncherState(filePath, new StateData());
             }
 
-            string json = File.ReadAllText(filePath);
+            string json;
+            try
+            {
+                json = File.ReadAllText(filePath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return new LauncherState(filePath, new StateData())
+                {
+                    LoadWarning = $"State file could not be read ({ex.Message}); started fresh."
+                };
+            }
+
             StateData loaded = null;
             string problem = null;
             try
@@ -76,11 +88,22 @@ namespace VRLauncher
             }
 
             string bad = filePath + ".bad";
-            if (File.Exists(bad))
+            try
             {
-                File.Delete(bad);
+                if (File.Exists(bad))
+                {
+                    File.Delete(bad);
+                }
+                File.Move(filePath, bad);
             }
-            File.Move(filePath, bad);
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return new LauncherState(filePath, new StateData())
+                {
+                    LoadWarning = $"State file was unreadable ({problem}); could not move it aside ({ex.Message}); started fresh."
+                };
+            }
+
             return new LauncherState(filePath, new StateData())
             {
                 LoadWarning = $"State file was unreadable ({problem}); moved it to {bad} and started fresh."
