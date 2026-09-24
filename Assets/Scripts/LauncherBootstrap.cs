@@ -27,6 +27,7 @@ namespace VRLauncher
         private TableListView view;
         private bool launching;
         private bool quitNoticeShown;
+        private TableEntry launchedEntry;
 
         private void Start()
         {
@@ -122,7 +123,11 @@ namespace VRLauncher
             yield return fader.Fade(1f, FadeSeconds, $"Loading {entry.Title}…");
             room.Suspend();
 
-            if (!launcher.LaunchTable(entry.FullPath))
+            if (launcher.LaunchTable(entry.FullPath))
+            {
+                launchedEntry = entry;
+            }
+            else
             {
                 room.Resume();
                 room.ShowNotice($"Could not start {entry.Title}. See the log.");
@@ -134,12 +139,17 @@ namespace VRLauncher
 
         private void OnTableExited()
         {
-            TableEntry entry = view.Selected;
-            if (entry != null)
-            {
-                state.RecordPlay(entry.RelativePath, DateTime.UtcNow);
-                SaveState();
-            }
+            // TableLauncher can raise this event twice for one exit (a synchronous call from
+            // KillCurrentTable plus a queued call from the process Exited handler, or a race
+            // between the Update poll and that handler). launchedEntry is cleared after the
+            // first call, so a second call is a no-op instead of double-recording the play or
+            // starting a second, overlapping Arrive() coroutine.
+            if (launchedEntry == null) return;
+
+            state.RecordPlay(launchedEntry.RelativePath, DateTime.UtcNow);
+            SaveState();
+            launchedEntry = null;
+
             room.ClearNotice();
             room.Refresh();
             fader.SetImmediate(1f, string.Empty);
