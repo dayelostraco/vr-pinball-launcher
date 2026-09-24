@@ -79,9 +79,6 @@ Edit `launcher-config.json` in the same folder as the executable:
   "tablesDirectory": "C:\\Visual Pinball\\Tables",
   "searchSubdirectories": true,
   "wheelDirectory": "C:\\Visual Pinball\\Media\\Wheel",
-  "menuDistance": 2.0,
-  "menuHeight": 1.5,
-  "menuScale": 0.01,
   "showDebugConsole": false,
   "enableControllerBridge": false,
   "controllerBridgePath": "",
@@ -97,9 +94,6 @@ Edit `launcher-config.json` in the same folder as the executable:
 - **searchSubdirectories**: Whether to search subdirectories for tables
 - **wheelDirectory**: Directory containing wheel images for tables (supports both absolute paths like `C:\\Visual Pinball\\Media\\Wheel` or relative paths like `Media\\Wheel`). Only the top level is scanned — `searchSubdirectories` applies to tables, not wheel art. Supported formats: PNG, JPG, JPEG. See [Table and Media Naming](#table-and-media-naming) for how images are matched to tables.
 - **tableMediaDirectory**: Folder of per-table media fetched by `tools/fetch_media.py`, one subfolder per table (`wheel.png`, `table.png`, `bg.png`, `table.mp4`). Relative paths are relative to the launcher folder. Defaults to `Media\Tables`.
-- **menuDistance**: Distance (in meters) to position menu from camera
-- **menuHeight**: Height offset (in meters) for menu positioning
-- **menuScale**: Scale factor for the menu UI
 - **showDebugConsole**: Show on-screen VR controller/button debug overlays (useful for troubleshooting). Defaults to `false`.
 - **enableControllerBridge**: Launch an external VR-controller input bridge when the launcher starts and stop it when the launcher exits. See [In-Game Controls](#in-game-controls-while-a-table-is-running). Defaults to `false`.
 - **controllerBridgePath**: Full path to the bridge executable to launch (e.g. the AutoHotkey executable, or a compiled bridge). Leave empty to disable.
@@ -164,7 +158,7 @@ track which build of a table you have, record it somewhere else — the per-tabl
 
 ### How matching actually works
 
-`TableScanner.LoadWheelImages()` tries three tiers in order and stops at the
+`WheelIndex` (used by `TableCatalog`) tries three tiers in order and stops at the
 first hit, so a correctly named table matches on tier 1:
 
 1. **exact** — basenames equal, ignoring case.
@@ -500,10 +494,11 @@ To add new features:
   `VRLauncher.EditorTools.ArcadeSceneSetup.Run` (see
   [Scene Setup](#scene-setup)). From the Mac: `tools/remote.sh batch
   <Method>`.
-- `tools/remote.sh` drives the PC working copy from the Mac over SSH: it
-  syncs the working copy, then runs `test`, `pytest`, `batch <Method>`,
-  `build`, `deploy`, `media` (runs `fetch_media.py`), `status`, `pull
-  <path> <dest>` or `pushback` as its subcommand.
+- `tools/remote.sh` drives the PC working copy from the Mac over SSH. Its
+  subcommands are `test`, `pytest`, `batch <Method>`, `build`, `deploy`,
+  `media` (runs `fetch_media.py`), `status`, `pull <path> <dest>` and
+  `pushback`. `test`, `pytest`, `batch`, `build`, `deploy` and `media` sync
+  the working copy first; `status`, `pull` and `pushback` do not.
 
 ## Credits
 
