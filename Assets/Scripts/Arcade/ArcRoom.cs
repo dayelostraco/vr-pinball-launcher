@@ -25,6 +25,7 @@ namespace VRLauncher
         private TableListView view;
         private LauncherState state;
         private MediaCache cache;
+        private string coinDoorImage;
         private TextMeshPro infoTitle;
         private TextMeshPro infoDetail;
         private TextMeshPro infoStatus;
@@ -45,12 +46,13 @@ namespace VRLauncher
 
         public CabinetView CabinetAt(int offset) => cabinets[offset];
 
-        public static ArcRoom Create(TableListView view, LauncherState state, MediaCache cache)
+        public static ArcRoom Create(TableListView view, LauncherState state, MediaCache cache, string coinDoorImage = null)
         {
             var room = new GameObject("ArcRoom").AddComponent<ArcRoom>();
             room.view = view;
             room.state = state;
             room.cache = cache;
+            room.coinDoorImage = coinDoorImage;
             room.Build();
             room.Assign();
             return room;
@@ -89,7 +91,7 @@ namespace VRLauncher
 
             for (int k = -ArcLayout.MaxOffset; k <= ArcLayout.MaxOffset; k++)
             {
-                cabinets[k] = CabinetView.Create(transform, cache);
+                cabinets[k] = CabinetView.Create(transform, cache, coinDoorImage);
             }
 
             var plate = new GameObject("InfoPlate").transform;

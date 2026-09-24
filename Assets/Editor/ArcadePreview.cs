@@ -17,6 +17,12 @@ namespace VRLauncher.EditorTools
         private static string InstalledDirectory =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "VR Pinball Launcher");
 
+        private static string InstalledCoinDoor()
+        {
+            string path = Path.Combine(InstalledDirectory, "Media", "Cabinet", "coindoor.jpg");
+            return File.Exists(path) ? path : null;
+        }
+
         /// <summary>The installed launcher's tables with media resolved exactly as the launcher does.</summary>
         public static List<TableEntry> LoadInstalledCatalog()
         {
@@ -46,10 +52,11 @@ namespace VRLauncher.EditorTools
 
                 var host = new GameObject("Preview");
                 MediaCache cache = host.AddComponent<MediaCache>();
+                string coinDoorImage = InstalledCoinDoor();
                 TableEntry[] entries = { noPlayfield, full, bare };
                 for (int i = 0; i < entries.Length; i++)
                 {
-                    CabinetView cabinet = CabinetView.Create(host.transform, cache);
+                    CabinetView cabinet = CabinetView.Create(host.transform, cache, coinDoorImage);
                     cabinet.transform.localPosition = new Vector3((i - 1) * 1.0f, 0f, 0f);
                     cabinet.SetEntry(entries[i]);
                     cabinet.SetFocused(i == 1);
@@ -73,7 +80,7 @@ namespace VRLauncher.EditorTools
                 view.Select(tables.First(t => t.Media.Playfield != null).RelativePath);
 
                 var host = new GameObject("Preview");
-                ArcRoom room = ArcRoom.Create(view, state, host.AddComponent<MediaCache>());
+                ArcRoom room = ArcRoom.Create(view, state, host.AddComponent<MediaCache>(), InstalledCoinDoor());
                 var head = new Vector3(0f, 1.66f, 0f);
                 room.Recenter(head, 0f);
                 return MakeCamera(head, Quaternion.Euler(15f, 0f, 0f), 100f);

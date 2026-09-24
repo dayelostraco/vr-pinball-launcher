@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ namespace VRLauncher
     /// Art is unlit (screens), the body is lit. Missing media falls back so every cabinet
     /// still looks finished: no playfield shows a dark playfield with the wheel as a decal,
     /// no backglass shows the wheel on the backbox, and no wheel shows the title on the topper.
+    /// The coin door shows a photo of a real door when one is installed, and otherwise shows
+    /// the built-in door.
     /// </summary>
     public sealed class CabinetView : MonoBehaviour
     {
@@ -36,6 +39,10 @@ namespace VRLauncher
         private static Mesh wedgeMesh;
 
         private MediaCache cache;
+        private string coinDoorImage;
+        private Material coinDoorPhotoMaterial;
+        private GameObject coinDoorPhoto;
+        private readonly List<GameObject> coinSlots = new List<GameObject>();
         private Material playfieldMaterial;
         private Material backglassMaterial;
         private Material wheelMaterial;
@@ -59,6 +66,7 @@ namespace VRLauncher
         public bool TopperVisible => topper.activeSelf;
         public string MarqueeText => marquee.gameObject.activeSelf ? marquee.text : null;
         public string PlaceholderText => placeholder.gameObject.activeSelf ? placeholder.text : null;
+        public bool CoinDoorPhotoVisible => coinDoorPhoto != null && coinDoorPhoto.activeSelf;
 
         /// <summary>A 1x1 near-black texture for blank screens (Sprites/Default renders white without one).</summary>
         public static Texture2D DarkTexture
@@ -103,12 +111,13 @@ namespace VRLauncher
             return material;
         }
 
-        public static CabinetView Create(Transform parent, MediaCache cache)
+        public static CabinetView Create(Transform parent, MediaCache cache, string coinDoorImage = null)
         {
             var go = new GameObject("Cabinet");
             go.transform.SetParent(parent, false);
             var view = go.AddComponent<CabinetView>();
             view.cache = cache;
+            view.coinDoorImage = coinDoorImage;
             view.Build();
             view.SetEntry(null);
             return view;
@@ -296,6 +305,7 @@ namespace VRLauncher
             backglassMaterial.color = tint;
             wheelMaterial.color = tint;
             decalMaterial.color = tint;
+            if (coinDoorPhotoMaterial != null) coinDoorPhotoMaterial.color = tint;
         }
 
         private static Material ArtMaterial(string name) =>
@@ -303,15 +313,30 @@ namespace VRLauncher
 
         private void BuildCoinDoor()
         {
-            // The body's front face is z = 0: the trim sits almost flush, the door stands proud of it,
-            // and the lit coin slots sit on the door.
-            Box("CoinDoorTrim", CoinDoorCenter + new Vector3(0f, 0f, -0.004f), new Vector3(0.33f, 0.43f, 0.012f), TrimMaterial);
-            Box("CoinDoor", CoinDoorCenter + new Vector3(0f, 0f, -0.010f), new Vector3(0.30f, 0.40f, 0.02f), DoorMaterial);
+            // The body's front face is z = 0: the trim sits almost flush, the door stands proud of it.
+            // The door is landscape like a real Williams/Bally 2-slot door (and the photo of one).
+            Box("CoinDoorTrim", CoinDoorCenter + new Vector3(0f, 0f, -0.004f), new Vector3(0.38f, 0.33f, 0.012f), TrimMaterial);
+            Box("CoinDoor", CoinDoorCenter + new Vector3(0f, 0f, -0.010f), new Vector3(0.35f, 0.30f, 0.02f), DoorMaterial);
             foreach (float x in new[] { -0.065f, 0.065f })
             {
-                Quad("CoinSlot", CoinDoorCenter + new Vector3(x, 0.08f, -0.021f), Quaternion.identity,
-                     new Vector3(0.045f, 0.06f, 1f), CoinLightMaterial);
+                coinSlots.Add(Quad("CoinSlot", CoinDoorCenter + new Vector3(x, 0.08f, -0.021f), Quaternion.identity,
+                                   new Vector3(0.045f, 0.06f, 1f), CoinLightMaterial).gameObject);
             }
+
+            if (string.IsNullOrEmpty(coinDoorImage)) return;
+
+            // A photo of a real door, when one is installed, replaces the built-in slots once it loads.
+            coinDoorPhotoMaterial = ArtMaterial("CoinDoorPhoto");
+            coinDoorPhoto = Quad("CoinDoorPhoto", CoinDoorCenter + new Vector3(0f, 0f, -0.0205f), Quaternion.identity,
+                                 new Vector3(0.35f, 0.30f, 1f), coinDoorPhotoMaterial).gameObject;
+            coinDoorPhoto.SetActive(false);
+            cache.Request(coinDoorImage, photo =>
+            {
+                if (this == null || photo == null) return;
+                coinDoorPhotoMaterial.mainTexture = photo;
+                coinDoorPhoto.SetActive(true);
+                foreach (GameObject slot in coinSlots) slot.SetActive(false);
+            });
         }
 
         private Transform AddMesh(string name, Mesh mesh, Material material)
@@ -374,7 +399,7 @@ namespace VRLauncher
 
         private void OnDestroy()
         {
-            foreach (Material material in new[] { playfieldMaterial, backglassMaterial, wheelMaterial, decalMaterial })
+            foreach (Material material in new[] { playfieldMaterial, backglassMaterial, wheelMaterial, decalMaterial, coinDoorPhotoMaterial })
             {
                 if (material == null) continue;
                 if (Application.isPlaying) Destroy(material);

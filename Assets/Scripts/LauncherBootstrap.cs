@@ -50,7 +50,17 @@ namespace VRLauncher
             if (state.LoadWarning != null) Debug.LogWarning(state.LoadWarning);
 
             view = new TableListView(tables, state);
-            room = ArcRoom.Create(view, state, cache);
+            string coinDoorImage = LauncherPaths.Resolve(@"Media\Cabinet\coindoor.jpg");
+            if (coinDoorImage != null && File.Exists(coinDoorImage))
+            {
+                Debug.Log($"Coin door photo: {coinDoorImage}");
+            }
+            else
+            {
+                Debug.Log("Coin door photo: none (built-in door)");
+                coinDoorImage = null;
+            }
+            room = ArcRoom.Create(view, state, cache, coinDoorImage);
             if (tables.Count == 0) room.ShowNotice($"Tables folder: {config.tablesDirectory}");
 
             fader = ScreenFader.Create(head);
