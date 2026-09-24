@@ -121,6 +121,22 @@ namespace VRLauncher.Tests
         }
 
         [Test]
+        public void Load_FileLockedByAnotherProcess_StartsFreshWithAWarning()
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(file, "{\"version\": 1, \"favorites\": [], \"plays\": []}");
+
+            using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                LauncherState state = LauncherState.Load(file);
+
+                Assert.IsNotNull(state.LoadWarning);
+                Assert.IsFalse(state.IsFavorite("a.vpx"));
+                Assert.IsEmpty(state.RecentPaths());
+            }
+        }
+
+        [Test]
         public void Save_CreatesTheDirectory()
         {
             LauncherState state = LauncherState.Load(file);
