@@ -68,6 +68,9 @@ namespace VRLauncher
         public string PlaceholderText => placeholder.gameObject.activeSelf ? placeholder.text : null;
         public bool CoinDoorPhotoVisible => coinDoorPhoto != null && coinDoorPhoto.activeSelf;
 
+        /// <summary>Test hook: the coin door photo texture, or null if none is installed/loaded.</summary>
+        public Texture CoinDoorPhotoTexture => coinDoorPhotoMaterial != null ? coinDoorPhotoMaterial.mainTexture : null;
+
         /// <summary>A 1x1 near-black texture for blank screens (Sprites/Default renders white without one).</summary>
         public static Texture2D DarkTexture
         {

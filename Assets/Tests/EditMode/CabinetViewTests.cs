@@ -206,6 +206,20 @@ namespace VRLauncher.Tests
         }
 
         [Test]
+        public void CoinDoorPhoto_SurvivesLruEviction()
+        {
+            CabinetView withPhoto = CabinetView.Create(host.transform, cache, Png("coindoor.png"));
+
+            for (int i = 0; i < MediaCache.Capacity + 5; i++)
+            {
+                cache.Request(Png($"other{i}.png"), t => { });
+            }
+
+            Assert.IsTrue(withPhoto.CoinDoorPhotoTexture != null);
+            Assert.IsTrue(withPhoto.CoinDoorPhotoVisible);
+        }
+
+        [Test]
         public void CoinDoor_IsLandscapeLikeTheRealPart()
         {
             Vector3 size = cabinet.transform.Find("CoinDoor").localScale;
