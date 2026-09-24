@@ -29,7 +29,7 @@ Scope is the user's own setup (fork only): Windows PC, SteamVR/OpenXR, `D:\Visua
 
 **Room.** A dark arcade room: floor, back wall, soft spotlights. The centered cabinet gets a brighter key light; side cabinets are dimmer. The room is anchored to the head position at startup and re-centered each time the launcher returns from a table, so it works seated or standing.
 
-**Arc.** 7 cabinet slots on an arc of radius about 2.2 m, spaced about 22 degrees apart, center slot straight ahead. Cabinets are life size (about 0.7 m wide, backbox top about 1.9 m). The playfield is tilted about 35 degrees toward the viewer, much steeper than a real machine, so its video is readable from the front. Browsing rotates the arc one slot in about 0.25 s with ease in/out. Holding the thumbstick repeats with acceleration. The list wraps around.
+**Arc.** 7 cabinet slots on an arc of radius about 2.2 m, spaced about 22 degrees apart, center slot straight ahead. Cabinets are life size (about 0.7 m wide, backbox top about 2.3 m). Each cabinet has a solid base under the tilted playfield, side rails along the playfield, a coin door with two lit coin slots on the front, and the wheel as a topper above the backbox (added 2026-09-24 after the first preview render). The playfield is tilted about 35 degrees toward the viewer, much steeper than a real machine, so its video is readable from the front. Browsing rotates the arc one slot in about 0.25 s with ease in/out. Holding the thumbstick repeats with acceleration. The list wraps around.
 
 **Info plate** under the centered cabinet: title; `Manufacturer · Year`; a star if favorite; "Last played <relative time>" if played; the current view name and position (for example `All · 12 / 42`).
 
@@ -80,7 +80,7 @@ For each table and each media kind, the launcher checks `Media\Tables\<Table Nam
 | `table.mp4` | `table.png` |
 | `table.png` | Dark playfield with the wheel as a centered decal |
 | `bg.png` | Wheel, enlarged on a dark backbox |
-| Wheel | Title text on the marquee |
+| Wheel | Title text on the topper |
 
 ### Video
 
@@ -107,7 +107,7 @@ Unity `VideoPlayer` rendering to a `RenderTexture`, active only on the centered 
 
 - **`LauncherInput`**: reads keyboard and both XR controllers and raises `Previous`, `Next`, `Launch`, `ToggleFavorite`, `CycleView` and quit-hold progress. Owns edge detection, trigger hysteresis (0.7 press / 0.4 release, as today) and stick repeat. Disabled while a table is running. Existing `VRControllerInput`, `VRJoystickMapper` and `VRMenuController` are folded in or deleted where they overlap; anything the controller bridge still needs is kept.
 - **`ArcRoom`**: builds the room, owns a pool of 7 `CabinetView`s, animates rotation, assigns entries to slots, and re-centers on the head.
-- **`CabinetView`** (prefab): cabinet body, legs, backbox, tilted playfield panel, marquee, built from primitives with runtime textures. `SetEntry(entry)`, `SetFocused(bool)` (key light, video on or off), `Pulse()`.
+- **`CabinetView`**: cabinet body, legs, a generated wedge that fills the space under the tilted playfield, playfield side rails, coin door, backbox and wheel topper, built in code from primitives with runtime textures (no prefab asset). `SetEntry(entry)`, `SetFocused(bool)` (key light, video on or off), `Pulse()`.
 - **`MediaCache`**: async texture loading, keeping the most recent 15 tables' textures (LRU) and destroying evicted textures.
 - **`ScreenFader`**: head-locked fade quad with a status line.
 - **`TableLauncher`** and **`ControllerBridge`**: unchanged except that launch is triggered after the fade-out, and `OnTableExited` drives fade-in and play recording.

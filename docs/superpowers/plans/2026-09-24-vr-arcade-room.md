@@ -21,7 +21,7 @@
 - **Media.** VPinMediaDB `table.png` and `table.mp4` are 1920x1080 landscape with the flippers on the right edge; `bg.png` is 1920x1080; `wheel.png` is 500x500 RGBA. Videos are H.264.
 - **Scripts never download ROMs**, and `fetch_media.py` never overwrites an existing file unless `--force` names that table.
 - **Writing.** No em-dashes in commit messages, README text or UI strings. Commit messages are short imperative sentences in the repo's style ("Add ...", "Move ..."), with no `Co-Authored-By` trailer.
-- **Recorded deviations from the spec** (approved when the plan is approved): play history is stored as a list of records because Unity's `JsonUtility` cannot serialise dictionaries; the media script is `tools/fetch_media.py` (underscore, so tests can import it); keyboard `F` and `V` are added for favorite and view so everything can be exercised without a headset. The spec's automated "PC smoke test" of the running launcher becomes the user's headset run plus a read of `Player.log` (Task 11), because starting the VR app over SSH would take over the headset; the build, the tests and the preview renders stay automated.
+- **Recorded deviations from the spec** (approved when the plan is approved): play history is stored as a list of records because Unity's `JsonUtility` cannot serialise dictionaries; the media script is `tools/fetch_media.py` (underscore, so tests can import it); keyboard `F` and `V` are added for favorite and view so everything can be exercised without a headset. The spec's automated "PC smoke test" of the running launcher becomes the user's headset run plus a read of `Player.log` (Task 12), because starting the VR app over SSH would take over the headset; the build, the tests and the preview renders stay automated.
 
 ## Review Focus
 
@@ -136,20 +136,20 @@ $logFile     = Join-Path $logDir "unity-tests.log"
 $results     = Join-Path $logDir "editmode-results.xml"
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-foreach ($file in @($logFile, $results)) {
+foreach ($file in ($logFile, $results)) {
     if (Test-Path $file) { Remove-Item $file -Force }
 }
 
 $unity = Find-UnityExe -ProjectPath $projectPath -Explicit $UnityExe
 Ensure-UnityHub
 
-$unityArgs = @('-batchmode', '-projectPath', $projectPath,
+$unityArgs = ('-batchmode', '-projectPath', $projectPath,
                '-runTests', '-testPlatform', 'EditMode',
                '-testResults', $results, '-logFile', $logFile)
-if ($Filter) { $unityArgs += @('-testFilter', $Filter) }
+if ($Filter) { $unityArgs += ('-testFilter', $Filter) }
 
 $started = Get-Date
-& $unity @unityArgs | Out-Null
+& $unity unityArgs | Out-Null
 Wait-UnityExit -ExePath $unity -Since $started
 Assert-NoOpenEditor -LogFile $logFile
 
@@ -165,7 +165,7 @@ if (-not (Test-Path $results)) { throw "No test results were written -- see $log
 $run = $xml.'test-run'
 Write-Host "EditMode tests: $($run.passed) passed, $($run.failed) failed, $($run.skipped) skipped (total $($run.total))"
 
-foreach ($case in $xml.SelectNodes('//test-case[@result="Failed"]')) {
+foreach ($case in $xml.SelectNodes('//test-case[result="Failed"]')) {
     Write-Host "FAIL $($case.fullname)" -ForegroundColor Red
     $message = $case.SelectSingleNode('failure/message')
     if ($message) { Write-Host "     $($message.InnerText.Trim())" }
@@ -247,7 +247,7 @@ set -euo pipefail
 HOST=sigilark-gpu
 WIN_REPO='C:\Users\dayel\Development\GitHub\vr-pinball-launcher'
 SCP_REPO='C:/Users/dayel/Development/GitHub/vr-pinball-launcher'
-SSH_URL='git@github.com:dayelostraco/vr-pinball-launcher.git'
+SSH_URL='gitgithub.com:dayelostraco/vr-pinball-launcher.git'
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 on_pc() {
@@ -301,7 +301,7 @@ esac
 # generate one on the PC. Create the file or folder first.
 #   tools/new-meta.sh Assets/Scripts/Arcade Assets/Scripts/Arcade/Foo.cs
 set -euo pipefail
-for path in "$@"; do
+for path in "$"; do
     meta="$path.meta"
     if [ -e "$meta" ]; then echo "exists: $meta"; continue; fi
     guid=$(uuidgen | tr -d '-' | tr 'A-F' 'a-f')
@@ -443,7 +443,7 @@ Unity rewrites `Packages/packages-lock.json` the first time it resolves the new 
 
 - [ ] **Step 8: Implement `TableNaming`**
 
-`Assets/Scripts/Core/TableNaming.cs` (the `Normalize` and `TitleYearSignature` bodies are moved from `TableScanner.cs`, which Task 10 deletes):
+`Assets/Scripts/Core/TableNaming.cs` (the `Normalize` and `TitleYearSignature` bodies are moved from `TableScanner.cs`, which Task 11 deletes):
 
 ```csharp
 using System.Text.RegularExpressions;
@@ -458,26 +458,26 @@ namespace VRLauncher
     {
         // A "(Manufacturer Year)" group, e.g. "(Bally 1995)".
         private static readonly Regex YearGroupRegex =
-            new Regex(@"\([^)]*\b(?:19|20)\d{2}\b[^)]*\)", RegexOptions.Compiled);
+            new Regex("\([^)]*\b(?:19|20)\d{2}\b[^)]*\)", RegexOptions.Compiled);
 
         private static readonly Regex YearTokenRegex =
-            new Regex(@"\b(?:19|20)\d{2}\b", RegexOptions.Compiled);
+            new Regex("\b(?:19|20)\d{2}\b", RegexOptions.Compiled);
 
         private static readonly Regex WhitespaceRegex =
-            new Regex(@"\s+", RegexOptions.Compiled);
+            new Regex("\s+", RegexOptions.Compiled);
 
         // VPX VR-room conversions prefix the title; wheel art never does.
         private static readonly Regex VrRoomPrefixRegex =
-            new Regex(@"^vr\s*room\s+", RegexOptions.Compiled);
+            new Regex("^vr\s*room\s+", RegexOptions.Compiled);
 
         // Lazy title, then the first parenthesised "Maker Year" group that actually ends in a year,
         // so "Spider-Man (Vault Edition) (Stern 2016)" keeps "(Vault Edition)" in the title.
         private static readonly Regex TitleMakerYearRegex =
-            new Regex(@"^(?<title>.*?)\s*\((?<maker>[^()]*?)\s+(?<year>(?:19|20)\d{2})\)", RegexOptions.Compiled);
+            new Regex("^(?<title>.*?)\s*\((?<maker>[^()]*?)\s+(?<year>(?:19|20)\d{2})\)", RegexOptions.Compiled);
 
         // "Simpsons Pinball Party, The" -> "The Simpsons Pinball Party".
         private static readonly Regex TrailingArticleRegex =
-            new Regex(@"^(?<rest>.+),\s*(?<article>The|A|An)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            new Regex("^(?<rest>.+),\s*(?<article>The|A|An)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Splits a table file stem into a display title, manufacturer and year.
@@ -668,9 +668,9 @@ namespace VRLauncher.Tests
 {
     public class TableCatalogTests
     {
-        private const string Tables = @"C:\fake\Tables";
-        private const string Media = @"C:\fake\Launcher\Media\Tables";
-        private const string Wheels = @"C:\fake\Launcher\Media\Wheel";
+        private const string Tables = "C:\fake\Tables";
+        private const string Media = "C:\fake\Launcher\Media\Tables";
+        private const string Wheels = "C:\fake\Launcher\Media\Wheel";
 
         private static CatalogSettings Settings(bool recursive = true) => new CatalogSettings
         {
@@ -695,22 +695,22 @@ namespace VRLauncher.Tests
         {
             var fs = new FakeFileSystem().Add(
                 T("White Water (Williams 1993).vpx"),
-                T(@"Sub\Attack from Mars (Bally 1995).vpx"),
+                T("Sub\Attack from Mars (Bally 1995).vpx"),
                 T("notes.txt"));
 
             var tables = TableCatalog.Scan(Settings(), fs);
 
             CollectionAssert.AreEqual(
-                new[] { @"Sub\Attack from Mars (Bally 1995).vpx", "White Water (Williams 1993).vpx" },
+                new[] { "Sub\Attack from Mars (Bally 1995).vpx", "White Water (Williams 1993).vpx" },
                 tables.Select(t => t.RelativePath).ToArray());
-            Assert.AreEqual(T(@"Sub\Attack from Mars (Bally 1995).vpx"), tables[0].FullPath);
+            Assert.AreEqual(T("Sub\Attack from Mars (Bally 1995).vpx"), tables[0].FullPath);
             Assert.AreEqual("Attack from Mars (Bally 1995)", tables[0].Stem);
         }
 
         [Test]
         public void Scan_NotRecursive_IgnoresSubfolders()
         {
-            var fs = new FakeFileSystem().Add(T("A (Bally 1990).vpx"), T(@"Sub\B (Bally 1991).vpx"));
+            var fs = new FakeFileSystem().Add(T("A (Bally 1990).vpx"), T("Sub\B (Bally 1991).vpx"));
             Assert.AreEqual(1, TableCatalog.Scan(Settings(recursive: false), fs).Count);
         }
 
@@ -1100,7 +1100,7 @@ In `LauncherConfig.cs`, directly after the `wheelDirectory` field add:
 
 ```csharp
         [Tooltip("Folder of per-table media fetched by tools/fetch_media.py, one subfolder per table (supports both relative and absolute paths)")]
-        public string tableMediaDirectory = @"Media\Tables";
+        public string tableMediaDirectory = "Media\Tables";
 ```
 
 In `launcher-config.json`, after the `wheelDirectory` line add `"tableMediaDirectory": "Media\\Tables",`.
@@ -1556,7 +1556,7 @@ namespace VRLauncher.Tests
             .Select(s =>
             {
                 ParsedName name = TableNaming.Parse(s);
-                return new TableEntry(s + ".vpx", @"C:\fake\Tables\" + s + ".vpx", s, name.Title, name.Manufacturer, name.Year, new MediaSet());
+                return new TableEntry(s + ".vpx", "C:\fake\Tables\" + s + ".vpx", s, name.Title, name.Manufacturer, name.Year, new MediaSet());
             })
             .ToList();
     }
@@ -2348,7 +2348,7 @@ class FakeGet:
         return None
 
 
-@pytest.fixture
+pytest.fixture
 def setup(tmp_path):
     tables = tmp_path / "Tables"
     tables.mkdir()
@@ -2764,12 +2764,12 @@ namespace VRLauncher.Tests
 {
     public class FileUriTests
     {
-        [TestCase(@"C:\Media\Tables\Attack from Mars (Bally 1995)\wheel.png")]
-        [TestCase(@"C:\Media\Tables\Bram Stoker's Dracula (Williams 1993)\bg.png")]
-        [TestCase(@"C:\Media\Tables\Simpsons Pinball Party, The (Stern 2003)\table.png")]
-        [TestCase(@"C:\Media\Tables\Rock & Roll (Bally 1990)\table.png")]
-        [TestCase(@"C:\Media\Tables\100% Pinball (Foo 1990)\table.png")]
-        [TestCase(@"C:\Media\Tables\Pin #1 (Foo 1990)\wheel.png")]
+        [TestCase("C:\Media\Tables\Attack from Mars (Bally 1995)\wheel.png")]
+        [TestCase("C:\Media\Tables\Bram Stoker's Dracula (Williams 1993)\bg.png")]
+        [TestCase("C:\Media\Tables\Simpsons Pinball Party, The (Stern 2003)\table.png")]
+        [TestCase("C:\Media\Tables\Rock & Roll (Bally 1990)\table.png")]
+        [TestCase("C:\Media\Tables\100% Pinball (Foo 1990)\table.png")]
+        [TestCase("C:\Media\Tables\Pin #1 (Foo 1990)\wheel.png")]
         public void FromPath_RoundTripsThroughUri(string path)
         {
             string uri = FileUri.FromPath(path);
@@ -3167,7 +3167,7 @@ namespace VRLauncher.Tests
         }
 
         private static TableEntry Entry(MediaSet media) =>
-            new TableEntry("Congo (Williams 1995).vpx", @"C:\t\Congo (Williams 1995).vpx", "Congo (Williams 1995)", "Congo", "Williams", 1995, media);
+            new TableEntry("Congo (Williams 1995).vpx", "C:\t\Congo (Williams 1995).vpx", "Congo (Williams 1995)", "Congo", "Williams", 1995, media);
 
         [Test]
         public void FullMedia_ShowsPlayfieldBackglassAndApronWheel()
@@ -4428,7 +4428,313 @@ Open `/tmp/preview-arc.png` with the Read tool and check: 7 cabinets on a curve,
 
 ---
 
-## Task 10: Wire it up and retire the carousel
+## Task 10: Cabinet polish (added 2026-09-24 at the user's request)
+
+**Files:**
+- Create: `Assets/Scripts/Arcade/CabinetMesh.cs`
+- Modify: `Assets/Scripts/Arcade/CabinetView.cs`, `Assets/Tests/EditMode/CabinetViewTests.cs`
+- Modify only if they mention the apron wheel: comments in `Assets/Scripts/Arcade/ArcRoom.cs`
+
+**Interfaces:**
+- Consumes: `CabinetView` (Task 8), `ArcadePreview.RenderCabinets` / `RenderArc` (Tasks 8 and 9).
+- Produces: `static class CabinetMesh { Mesh Wedge(float width, float zStart, float zEnd, float yBottom, float yTop); }`. `CabinetView` loses `ApronWheelVisible` and gains `TopperVisible`; every other member is unchanged.
+
+**What changes, and why.** The first preview render showed three things:
+- **The gap.** The 35 degree playfield leaves an open triangular gap on each side between the base and the playfield, so the cabinet looks hollow from any angle but straight on.
+- **The front.** It is a blank box. The user asked for a coin door there, and chose to move the wheel up to a **topper** above the backbox.
+- **The rails.** Thin side rails along the playfield's long edges frame it and hide the join.
+
+The fixes:
+- A generated wedge mesh (`PlayfieldBase`) fills the volume under the playfield. It replaces the old `HeadSupport` box.
+- The two playfield side rails are added.
+- The coin door is built from primitives: a chrome trim plate, a dark metal door, and two red-lit coin slots.
+- The wheel moves from the apron to a topper above the backbox, and the no-wheel title text moves with it.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `Assets/Tests/EditMode/CabinetViewTests.cs`:
+- Replace every `cabinet.ApronWheelVisible` with `cabinet.TopperVisible`. That is one `IsTrue`, in `FullMedia_ShowsPlayfieldBackglassAndApronWheel`: rename that test to `FullMedia_ShowsPlayfieldBackglassAndTopper`. It is also one `IsFalse`, in `NoWheel_ShowsTheTitleOnTheMarquee`.
+- Add these tests to the class:
+
+```csharp
+        [Test]
+        public void Wedge_FacesPointOutward()
+        {
+            Mesh mesh = CabinetMesh.Wedge(0.72f, 0.078f, 1.08f, 0.96f, 1.66f);
+            Vector3[] vertices = mesh.vertices;
+            int[] triangles = mesh.triangles;
+            Vector3 inside = Vector3.zero;
+            foreach (Vector3 vertex in vertices) inside += vertex;
+            inside /= vertices.Length;
+
+            Assert.AreEqual(8, triangles.Length / 3);   // 2 side triangles + 3 quads
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                Vector3 a = vertices[triangles[i]], b = vertices[triangles[i + 1]], c = vertices[triangles[i + 2]];
+                Vector3 normal = Vector3.Cross(b - a, c - a);
+                Assert.Greater(Vector3.Dot(normal, (a + b + c) / 3f - inside), 0f, $"triangle {i / 3} faces inward");
+            }
+            UnityEngine.Object.DestroyImmediate(mesh);
+        }
+
+        [Test]
+        public void PlayfieldBase_FillsTheGapJustUnderThePlayfield()
+        {
+            Transform wedge = cabinet.transform.Find("PlayfieldBase");
+            Assert.IsNotNull(wedge);
+            Assert.IsNull(cabinet.transform.Find("HeadSupport"));
+
+            Vector3 normal = CabinetView.PlayfieldRotation * Vector3.back;
+            float highest = float.MinValue;
+            foreach (Vector3 vertex in wedge.GetComponent<MeshFilter>().sharedMesh.vertices)
+            {
+                float above = Vector3.Dot(vertex - CabinetView.PlayfieldCenter, normal);
+                Assert.LessOrEqual(above, 0.001f, "wedge pokes through the playfield");
+                highest = Mathf.Max(highest, above);
+            }
+            Assert.Greater(highest, -0.02f, "wedge leaves a visible gap under the playfield");
+        }
+
+        [Test]
+        public void Playfield_HasSideRails()
+        {
+            Assert.IsNotNull(cabinet.transform.Find("RailLeft"));
+            Assert.IsNotNull(cabinet.transform.Find("RailRight"));
+        }
+
+        [Test]
+        public void Front_HasACoinDoorWithTwoLitSlots()
+        {
+            Assert.IsNotNull(cabinet.transform.Find("CoinDoor"));
+            Assert.IsNotNull(cabinet.transform.Find("CoinDoorTrim"));
+            int slots = 0;
+            foreach (Transform child in cabinet.transform)
+            {
+                if (child.name == "CoinSlot") slots++;
+            }
+            Assert.AreEqual(2, slots);
+        }
+```
+
+```bash
+git add Assets/Tests && git commit -m "Add cabinet polish tests"
+tools/remote.sh test CabinetViewTests
+```
+
+Expected: compilation fails (`CabinetMesh` not found, `TopperVisible` not found).
+
+- [ ] **Step 2: Add the wedge mesh**
+
+`Assets/Scripts/Arcade/CabinetMesh.cs`:
+
+```csharp
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace VRLauncher
+{
+    /// <summary>Meshes for cabinet parts that Unity's primitives cannot make.</summary>
+    public static class CabinetMesh
+    {
+        /// <summary>
+        /// A solid wedge <paramref name="width"/> wide, centred on X, whose side profile is the right
+        /// triangle (zStart, yBottom), (zEnd, yTop), (zEnd, yBottom): a flat bottom, a vertical back
+        /// and a rising slope. Faces do not share vertices, so each is flat-shaded, and every
+        /// triangle is wound to face outward.
+        /// </summary>
+        public static Mesh Wedge(float width, float zStart, float zEnd, float yBottom, float yTop)
+        {
+            float half = width / 2f;
+            var leftFront = new Vector3(-half, yBottom, zStart);
+            var leftTop = new Vector3(-half, yTop, zEnd);
+            var leftBack = new Vector3(-half, yBottom, zEnd);
+            var rightFront = new Vector3(half, yBottom, zStart);
+            var rightTop = new Vector3(half, yTop, zEnd);
+            var rightBack = new Vector3(half, yBottom, zEnd);
+
+            // Any point with positive weight on every corner is strictly inside the solid.
+            Vector3 inside = (leftFront + leftTop + leftBack + rightFront + rightTop + rightBack) / 6f;
+
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+
+            // Corners go round the face's perimeter; winding is fixed per triangle below.
+            void Face(params Vector3[] corners)
+            {
+                int start = vertices.Count;
+                vertices.AddRange(corners);
+                for (int i = 1; i < corners.Length - 1; i++)
+                {
+                    int a = start, b = start + i, c = start + i + 1;
+                    Vector3 normal = Vector3.Cross(vertices[b] - vertices[a], vertices[c] - vertices[a]);
+                    Vector3 centroid = (vertices[a] + vertices[b] + vertices[c]) / 3f;
+                    if (Vector3.Dot(normal, centroid - inside) < 0f)
+                    {
+                        (b, c) = (c, b);
+                    }
+                    triangles.Add(a);
+                    triangles.Add(b);
+                    triangles.Add(c);
+                }
+            }
+
+            Face(leftFront, leftTop, leftBack);
+            Face(rightFront, rightTop, rightBack);
+            Face(leftFront, leftBack, rightBack, rightFront);   // bottom
+            Face(leftBack, leftTop, rightTop, rightBack);       // back
+            Face(leftFront, rightFront, rightTop, leftTop);     // slope
+
+            var mesh = new Mesh { name = "CabinetWedge" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+    }
+}
+```
+
+```bash
+tools/new-meta.sh Assets/Scripts/Arcade/CabinetMesh.cs
+```
+
+- [ ] **Step 3: Update `CabinetView`**
+
+Make these edits to `Assets/Scripts/Arcade/CabinetView.cs`.
+
+1. **Constants.** Replace the `ApronCenter` and `ApronWheelSize` constants with:
+
+```csharp
+        private static readonly Vector3 TopperCenter = new Vector3(0f, 2.49f, 1.07f);
+        private const float TopperSize = 0.40f;
+        private static readonly Vector3 CoinDoorCenter = new Vector3(0f, 0.62f, 0f);
+```
+
+2. **Fields.** Rename the field `apronWheel` to `topper`, and the property `ApronWheelVisible` to `TopperVisible` (`public bool TopperVisible => topper.activeSelf;`). Add these static fields next to `bodyMaterial`:
+
+```csharp
+        private static Material doorMaterial;
+        private static Material trimMaterial;
+        private static Material coinLightMaterial;
+        private static Mesh wedgeMesh;
+```
+
+   Add these static properties next to `BodyMaterial`, in the same lazy style:
+
+```csharp
+        private static Material DoorMaterial => doorMaterial != null ? doorMaterial : (doorMaterial = Metal("CoinDoor", new Color(0.13f, 0.13f, 0.14f), 0.8f, 0.6f));
+        private static Material TrimMaterial => trimMaterial != null ? trimMaterial : (trimMaterial = Metal("CoinDoorTrim", new Color(0.75f, 0.75f, 0.78f), 0.9f, 0.85f));
+        private static Material CoinLightMaterial => coinLightMaterial != null ? coinLightMaterial
+            : (coinLightMaterial = new Material(Shader.Find("Sprites/Default")) { name = "CoinLight", color = new Color(1f, 0.18f, 0.12f) });
+        private static Mesh WedgeMesh => wedgeMesh != null ? wedgeMesh : (wedgeMesh = CabinetMesh.Wedge(0.72f, 0.078f, 1.08f, 0.96f, 1.66f));
+
+        private static Material Metal(string name, Color color, float metallic, float gloss)
+        {
+            var material = new Material(Shader.Find("Standard")) { name = name, color = color };
+            material.SetFloat("_Metallic", metallic);
+            material.SetFloat("_Glossiness", gloss);
+            return material;
+        }
+```
+
+   The wedge's slope runs from (z 0.078, y 0.96) to (z 1.08, y 1.66). That puts it 8 to 14 mm under the playfield plane along its whole length, and the test in Step 1 pins it.
+
+3. **`Build()`.**
+   - **Remove** the `Box("HeadSupport", ...)` line.
+   - **Add after the LockdownBar line:**
+
+```csharp
+            // Fills the space under the steeply tilted playfield so the cabinet is solid from the side.
+            AddMesh("PlayfieldBase", WedgeMesh, body);
+
+            Vector3 lift = PlayfieldRotation * Vector3.back * 0.02f;
+            foreach (float side in new[] { -1f, 1f })
+            {
+                Transform rail = Box(side < 0f ? "RailLeft" : "RailRight",
+                                     PlayfieldCenter + lift + new Vector3(side * 0.365f, 0f, 0f),
+                                     new Vector3(0.03f, 0.05f, 1.27f), body);
+                rail.localRotation = Quaternion.Euler(-35f, 0f, 0f);   // along the playfield slope
+            }
+
+            BuildCoinDoor();
+```
+
+   - **Replace** the apron wheel and marquee lines:
+
+```csharp
+            wheelMaterial = ArtMaterial("TopperWheel");
+            topper = Quad("TopperWheel", TopperCenter, Quaternion.identity,
+                          new Vector3(TopperSize, TopperSize, 1f), wheelMaterial).gameObject;
+
+            marquee = Label("Marquee", TopperCenter + new Vector3(0f, -0.08f, -0.005f), new Vector2(0.66f, 0.26f));
+```
+
+   (`placeholder` stays on the backglass.)
+
+4. **`SetEntry`.** Replace `apronWheel.SetActive(false)` with `topper.SetActive(false)`, and `apronWheel.SetActive(true)` with `topper.SetActive(true)`.
+
+5. **New helpers,** next to `Box` and `Quad`:
+
+```csharp
+        private void BuildCoinDoor()
+        {
+            // The body's front face is z = 0: the trim sits almost flush, the door stands proud of it,
+            // and the lit coin slots sit on the door.
+            Box("CoinDoorTrim", CoinDoorCenter + new Vector3(0f, 0f, -0.004f), new Vector3(0.33f, 0.43f, 0.012f), TrimMaterial);
+            Box("CoinDoor", CoinDoorCenter + new Vector3(0f, 0f, -0.010f), new Vector3(0.30f, 0.40f, 0.02f), DoorMaterial);
+            foreach (float x in new[] { -0.065f, 0.065f })
+            {
+                Quad("CoinSlot", CoinDoorCenter + new Vector3(x, 0.08f, -0.021f), Quaternion.identity,
+                     new Vector3(0.045f, 0.06f, 1f), CoinLightMaterial);
+            }
+        }
+
+        private Transform AddMesh(string name, Mesh mesh, Material material)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = material;
+            return go.transform;
+        }
+```
+
+6. **Class summary.** Update it to say the wheel is on a topper above the backbox and the front carries a coin door, and change "no wheel shows the title on the apron" to "on the topper". `OnDestroy` stays as it is. The new materials and the wedge mesh are shared statics, like `bodyMaterial`, and must not be destroyed per cabinet.
+
+7. **ArcRoom.** If `ArcRoom.cs` comments mention the apron wheel (for example beside `InfoPlateOffset`), change them to "coin door". Do not change any values.
+
+- [ ] **Step 4: Run the tests to see them pass**
+
+```bash
+git add Assets
+git commit -m "Close the cabinet under the playfield, add rails and a coin door, and move the wheel to a topper"
+tools/remote.sh test
+```
+
+Expected: all tests pass (Task 9's total plus the 4 new tests).
+
+- [ ] **Step 5: Re-render and inspect**
+
+```bash
+tools/remote.sh batch VRLauncher.EditorTools.ArcadePreview.RenderCabinets
+tools/remote.sh pull Logs/preview-cabinets.png .superpowers/sdd/2026-09-24-vr-arcade-room/preview-cabinets-polish.png
+tools/remote.sh batch VRLauncher.EditorTools.ArcadePreview.RenderArc
+tools/remote.sh pull Logs/preview-arc.png .superpowers/sdd/2026-09-24-vr-arcade-room/preview-arc-polish.png
+```
+
+Open both with the Read tool and check:
+1. The side cabinets in the cabinet render show a **solid side** under the playfield, with no triangular gap. If the wedge is invisible, its faces are inside-out. Check `Wedge_FacesPointOutward`.
+2. The rails run along both long edges of the playfield without floating above it or sinking into it.
+3. The coin door is centred on the front, with two red slots near its top.
+4. The wheel sits above each backbox as a topper. On Pinball Training Lab the title text sits there instead.
+5. In the arc render, the info plate does not cover the coin door, and the toppers are not cut off at the top of the frame.
+
+Fix any constant that is visibly off and re-render. Describe each check in the report.
+
+---
+
+## Task 11: Wire it up and retire the carousel
 
 **Files:**
 - Create: `Assets/Scripts/Arcade/ScreenFader.cs`, `Assets/Scripts/LauncherBootstrap.cs`, `Assets/Editor/ArcadeSceneSetup.cs`
@@ -4947,7 +5253,7 @@ Expected: all tests pass; `Build OK: ...\Build\vr-launch.exe`. If `build.ps1` re
 
 ---
 
-## Task 11: Deploy, document and hand over
+## Task 12: Deploy, document and hand over
 
 **Files:**
 - Modify: `README.md`
