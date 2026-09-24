@@ -38,6 +38,7 @@ namespace VRLauncher
             Application.runInBackground = true;
             Camera head = Camera.main;
             headCamera = head;
+            AddHeadTracking(head);
             head.clearFlags = CameraClearFlags.SolidColor;
             head.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
 
@@ -117,6 +118,47 @@ namespace VRLauncher
             room.Resume();
             yield return fader.Fade(0f, FadeSeconds);
             input.InputEnabled = true;
+        }
+
+        /// <summary>
+        /// With XR Plugin Management and the OpenXR plugin 1.18, Unity no longer moves the Main
+        /// Camera to follow the headset by itself; without a pose driver the camera stays frozen
+        /// at its editor pose and the whole room appears to swing around the player's head instead
+        /// of the player looking around the room. Adding a TrackedPoseDriver at runtime restores
+        /// tracking. Because Reset() (which is what fills in the default action bindings when the
+        /// component is added in the editor) only runs in editor mode, a driver added at runtime
+        /// gets no bindings for free, so its inputs are built and assigned here explicitly.
+        /// </summary>
+        private static void AddHeadTracking(Camera head)
+        {
+            UnityEngine.InputSystem.XR.TrackedPoseDriver driver =
+                head.gameObject.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
+            if (driver == null)
+            {
+                driver = head.gameObject.AddComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
+            }
+
+            driver.trackingType = UnityEngine.InputSystem.XR.TrackedPoseDriver.TrackingType.RotationAndPosition;
+            driver.updateType = UnityEngine.InputSystem.XR.TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
+
+            // TrackedPoseDriver's positionInput/rotationInput/trackingStateInput setters unbind the
+            // old action and bind the new one whenever the component is already active and enabled,
+            // and binding an action that has no InputActionReference (i.e. one we own directly, as
+            // here) enables that action as part of the bind. So assigning these properties after
+            // AddComponent is enough to get them enabled; the explicit enable checks below are a
+            // safety net in case that ever changes.
+            driver.positionInput = new UnityEngine.InputSystem.InputActionProperty(
+                new UnityEngine.InputSystem.InputAction("Head Position", UnityEngine.InputSystem.InputActionType.Value, "<XRHMD>/centerEyePosition"));
+            driver.rotationInput = new UnityEngine.InputSystem.InputActionProperty(
+                new UnityEngine.InputSystem.InputAction("Head Rotation", UnityEngine.InputSystem.InputActionType.Value, "<XRHMD>/centerEyeRotation"));
+            driver.trackingStateInput = new UnityEngine.InputSystem.InputActionProperty(
+                new UnityEngine.InputSystem.InputAction("Head Tracking State", UnityEngine.InputSystem.InputActionType.Value, "<XRHMD>/trackingState"));
+
+            if (!driver.positionInput.action.enabled) driver.positionInput.action.Enable();
+            if (!driver.rotationInput.action.enabled) driver.rotationInput.action.Enable();
+            if (!driver.trackingStateInput.action.enabled) driver.trackingStateInput.action.Enable();
+
+            Debug.Log($"Head tracking: TrackedPoseDriver on {head.name}");
         }
 
         private static bool HeadsetTracked()
