@@ -55,7 +55,15 @@ case "$cmd" in
     batch)   sync; on_pc "powershell -ExecutionPolicy Bypass -File tools\\unity-batch.ps1 -Method $1; exit \$LASTEXITCODE" ;;
     build)   sync; on_pc "powershell -ExecutionPolicy Bypass -File build.ps1 -SkipInstaller; exit \$LASTEXITCODE" ;;
     deploy)  sync; on_pc "powershell -ExecutionPolicy Bypass -File build.ps1 -SkipInstaller -Deploy; exit \$LASTEXITCODE" ;;
-    media)   sync; on_pc "uv run tools/fetch_media.py $*; exit \$LASTEXITCODE" ;;
+    media)
+        sync
+        args=""
+        for arg in "$@"; do
+            escaped=${arg//\'/\'\'}
+            args="$args '$escaped'"
+        done
+        on_pc "uv run tools/fetch_media.py$args; exit \$LASTEXITCODE"
+        ;;
     pull)    scp -q "$HOST:$SCP_REPO/$1" "$2" ;;
     pushback)
         on_pc "git add -A; git commit -q -m '$1'; git push -q $SSH_URL $BRANCH; exit \$LASTEXITCODE"
