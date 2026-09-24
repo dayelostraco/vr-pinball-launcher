@@ -69,3 +69,7 @@ launcher-config.json.user
 # Media folders
 Media/
 Build/Media/
+
+# Python cache
+__pycache__/
+*.pyc
