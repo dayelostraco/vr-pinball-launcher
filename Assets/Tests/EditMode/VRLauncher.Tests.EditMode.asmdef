@@ -3,6 +3,7 @@
     "rootNamespace": "VRLauncher.Tests",
     "references": [
         "VRLauncher.Core",
+        "VRLauncher.Arcade",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
