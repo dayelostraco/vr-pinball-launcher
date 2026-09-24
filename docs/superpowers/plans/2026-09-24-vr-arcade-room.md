@@ -21,7 +21,7 @@
 - **Media.** VPinMediaDB `table.png` and `table.mp4` are 1920x1080 landscape with the flippers on the right edge; `bg.png` is 1920x1080; `wheel.png` is 500x500 RGBA. Videos are H.264.
 - **Scripts never download ROMs**, and `fetch_media.py` never overwrites an existing file unless `--force` names that table.
 - **Writing.** No em-dashes in commit messages, README text or UI strings. Commit messages are short imperative sentences in the repo's style ("Add ...", "Move ..."), with no `Co-Authored-By` trailer.
-- **Recorded deviations from the spec** (approved when the plan is approved): play history is stored as a list of records because Unity's `JsonUtility` cannot serialise dictionaries; the media script is `tools/fetch_media.py` (underscore, so tests can import it); keyboard `F` and `V` are added for favorite and view so everything can be exercised without a headset. The spec's automated "PC smoke test" of the running launcher becomes the user's headset run plus a read of `Player.log` (Task 12), because starting the VR app over SSH would take over the headset; the build, the tests and the preview renders stay automated.
+- **Recorded deviations from the spec** (approved when the plan is approved): play history is stored as a list of records because Unity's `JsonUtility` cannot serialise dictionaries; the media script is `tools/fetch_media.py` (underscore, so tests can import it); keyboard `F` and `V` are added for favorite and view so everything can be exercised without a headset. The spec's automated "PC smoke test" of the running launcher becomes the user's headset run plus a read of `Player.log` (Task 13), because starting the VR app over SSH would take over the headset; the build, the tests and the preview renders stay automated.
 
 ## Review Focus
 
@@ -5253,7 +5253,190 @@ Expected: all tests pass; `Build OK: ...\Build\vr-launch.exe`. If `build.ps1` re
 
 ---
 
-## Task 12: Deploy, document and hand over
+## Task 12: Coin door photo (added 2026-09-24 at the user's request)
+
+**Files:**
+- Modify: `Assets/Scripts/Arcade/CabinetView.cs`, `Assets/Scripts/Arcade/ArcRoom.cs`, `Assets/Scripts/LauncherBootstrap.cs`, `Assets/Editor/ArcadePreview.cs`, `Assets/Tests/EditMode/CabinetViewTests.cs`
+- Not committed: the photo itself. The fork is public and the image is an Amazon product photo, so it lives only on the PC, in the installed launcher at `Media\Cabinet\coindoor.jpg`, like the table media.
+
+**Interfaces:**
+- Consumes: `CabinetView` (Tasks 8 and 10), `ArcRoom.Create` (Task 9), `LauncherBootstrap` (Task 11), `MediaCache.Request` (Task 7).
+- Produces:
+  - `CabinetView.Create(Transform parent, MediaCache cache, string coinDoorImage = null)`
+  - `bool CabinetView.CoinDoorPhotoVisible`
+  - `ArcRoom.Create(TableListView view, LauncherState state, MediaCache cache, string coinDoorImage = null)`
+
+Existing callers keep working because the new parameters default to null.
+
+**What changes.** The user supplied a straight-on photo of a real Williams/Bally 2-slot coin door (342x294, landscape). When `coinDoorImage` points at a readable file:
+- The door face shows that photo on a quad sized to the photo's proportions.
+- The two built-in red slot quads are hidden, because the photo has its own slots.
+
+When the path is null or the file is missing or unreadable, the cabinet keeps the built-in door exactly as Task 10 made it.
+
+The door becomes landscape (0.35 m x 0.30 m, matching the photo) instead of 0.30 m x 0.40 m, and the chrome trim becomes 0.38 m x 0.33 m. The slot positions stay where Task 10 put them, which is still inside the smaller door.
+
+- [ ] **Step 1: Put the photo on the PC**
+
+The photo is on the Mac at `.superpowers/sdd/2026-09-24-vr-arcade-room/coindoor.jpg`. Copy it into the installed launcher and check it arrived:
+
+```bash
+ssh sigilark-gpu "New-Item -ItemType Directory -Force 'C:\Users\dayel\AppData\Local\Programs\VR Pinball Launcher\Media\Cabinet' | Out-Null"
+scp -q .superpowers/sdd/2026-09-24-vr-arcade-room/coindoor.jpg "sigilark-gpu:C:/Users/dayel/AppData/Local/Programs/VR Pinball Launcher/Media/Cabinet/coindoor.jpg"
+ssh sigilark-gpu "Get-Item 'C:\Users\dayel\AppData\Local\Programs\VR Pinball Launcher\Media\Cabinet\coindoor.jpg' | Select Length"
+```
+
+Expected: `Length 11446`.
+
+- [ ] **Step 2: Write the failing tests**
+
+Add to `Assets/Tests/EditMode/CabinetViewTests.cs`:
+
+```csharp
+        [Test]
+        public void CoinDoorPhoto_ReplacesTheBuiltInSlots()
+        {
+            CabinetView withPhoto = CabinetView.Create(host.transform, cache, Png("coindoor.png"));
+
+            Assert.IsTrue(withPhoto.CoinDoorPhotoVisible);
+            foreach (Transform child in withPhoto.transform)
+            {
+                if (child.name == "CoinSlot") Assert.IsFalse(child.gameObject.activeSelf);
+            }
+        }
+
+        [Test]
+        public void CoinDoorPhoto_MissingFile_KeepsTheBuiltInDoor()
+        {
+            CabinetView missing = CabinetView.Create(host.transform, cache, Path.Combine(dir, "nope.jpg"));
+
+            Assert.IsFalse(missing.CoinDoorPhotoVisible);
+            int litSlots = 0;
+            foreach (Transform child in missing.transform)
+            {
+                if (child.name == "CoinSlot" && child.gameObject.activeSelf) litSlots++;
+            }
+            Assert.AreEqual(2, litSlots);
+        }
+
+        [Test]
+        public void CoinDoor_IsLandscapeLikeTheRealPart()
+        {
+            Vector3 size = cabinet.transform.Find("CoinDoor").localScale;
+            Assert.AreEqual(0.35f, size.x, 1e-4f);
+            Assert.AreEqual(0.30f, size.y, 1e-4f);
+        }
+```
+
+The existing `cabinet` fixture is created without a photo, so `Front_HasACoinDoorWithTwoLitSlots` keeps covering the fallback.
+
+```bash
+git add Assets/Tests && git commit -m "Add coin door photo tests"
+tools/remote.sh test CabinetViewTests
+```
+
+Expected: compilation fails (`CoinDoorPhotoVisible` is not found, and `Create` has no overload that takes 3 arguments).
+
+- [ ] **Step 3: Implement it in `CabinetView`**
+
+1. `Create` gains the parameter and stores it before `Build()`:
+
+```csharp
+        public static CabinetView Create(Transform parent, MediaCache cache, string coinDoorImage = null)
+        {
+            var go = new GameObject("Cabinet");
+            go.transform.SetParent(parent, false);
+            var view = go.AddComponent<CabinetView>();
+            view.cache = cache;
+            view.coinDoorImage = coinDoorImage;
+            view.Build();
+            view.SetEntry(null);
+            return view;
+        }
+```
+
+2. Add these fields: `private string coinDoorImage;`, `private Material coinDoorPhotoMaterial;`, `private GameObject coinDoorPhoto;`, `private readonly List<GameObject> coinSlots = new List<GameObject>();` (add `using System.Collections.Generic;`). Add the test hook `public bool CoinDoorPhotoVisible => coinDoorPhoto != null && coinDoorPhoto.activeSelf;`.
+
+3. Replace `BuildCoinDoor` with:
+
+```csharp
+        private void BuildCoinDoor()
+        {
+            // The body's front face is z = 0: the trim sits almost flush, the door stands proud of it.
+            // The door is landscape like a real Williams/Bally 2-slot door (and the photo of one).
+            Box("CoinDoorTrim", CoinDoorCenter + new Vector3(0f, 0f, -0.004f), new Vector3(0.38f, 0.33f, 0.012f), TrimMaterial);
+            Box("CoinDoor", CoinDoorCenter + new Vector3(0f, 0f, -0.010f), new Vector3(0.35f, 0.30f, 0.02f), DoorMaterial);
+            foreach (float x in new[] { -0.065f, 0.065f })
+            {
+                coinSlots.Add(Quad("CoinSlot", CoinDoorCenter + new Vector3(x, 0.08f, -0.021f), Quaternion.identity,
+                                   new Vector3(0.045f, 0.06f, 1f), CoinLightMaterial).gameObject);
+            }
+
+            if (string.IsNullOrEmpty(coinDoorImage)) return;
+
+            // A photo of a real door, when one is installed, replaces the built-in slots once it loads.
+            coinDoorPhotoMaterial = ArtMaterial("CoinDoorPhoto");
+            coinDoorPhoto = Quad("CoinDoorPhoto", CoinDoorCenter + new Vector3(0f, 0f, -0.0205f), Quaternion.identity,
+                                 new Vector3(0.35f, 0.30f, 1f), coinDoorPhotoMaterial).gameObject;
+            coinDoorPhoto.SetActive(false);
+            cache.Request(coinDoorImage, photo =>
+            {
+                if (this == null || photo == null) return;
+                coinDoorPhotoMaterial.mainTexture = photo;
+                coinDoorPhoto.SetActive(true);
+                foreach (GameObject slot in coinSlots) slot.SetActive(false);
+            });
+        }
+```
+
+4. In `ApplyTint`, also tint `coinDoorPhotoMaterial` when it is not null. In `OnDestroy`, add `coinDoorPhotoMaterial` to the per-cabinet materials that get destroyed. It is per-cabinet; the texture belongs to `MediaCache` and must not be destroyed.
+
+5. Update the class summary: the coin door shows a photo of a real door when one is installed, and otherwise shows the built-in door.
+
+- [ ] **Step 4: Thread the path through `ArcRoom`, the bootstrap and the previews**
+
+- **`ArcRoom`:** `Create(TableListView view, LauncherState state, MediaCache cache, string coinDoorImage = null)` stores the path in a field before `Build()`. `Build()` passes it on: `CabinetView.Create(transform, cache, coinDoorImage)`.
+- **`LauncherBootstrap.Start`:** when creating the room, resolve the photo with `LauncherPaths.Resolve(@"Media\Cabinet\coindoor.jpg")` and pass it only if `File.Exists` finds it (otherwise pass null). Log `Coin door photo: <path>` or `Coin door photo: none (built-in door)`.
+- **`ArcadePreview`:** add a helper `private static string InstalledCoinDoor()` that returns `Path.Combine(InstalledDirectory, "Media", "Cabinet", "coindoor.jpg")` when it exists and null otherwise. Pass it to every `CabinetView.Create` in `RenderCabinets` and to `ArcRoom.Create` in `RenderArc`.
+
+- [ ] **Step 5: Run the tests to see them pass**
+
+```bash
+git add Assets
+git commit -m "Show a photo of a real coin door when one is installed"
+tools/remote.sh test
+```
+
+Expected: all tests pass (Task 11's 104 plus the 3 new tests, so 107).
+
+- [ ] **Step 6: Re-render and inspect**
+
+```bash
+tools/remote.sh batch VRLauncher.EditorTools.ArcadePreview.RenderCabinets
+tools/remote.sh pull Logs/preview-cabinets.png .superpowers/sdd/2026-09-24-vr-arcade-room/preview-cabinets-coindoor.png
+tools/remote.sh batch VRLauncher.EditorTools.ArcadePreview.RenderArc
+tools/remote.sh pull Logs/preview-arc.png .superpowers/sdd/2026-09-24-vr-arcade-room/preview-arc-coindoor.png
+```
+
+Open both renders with the Read tool and check these points:
+- **Orientation.** Each cabinet front shows the door photo upright and not mirrored: coin slots at the top right, coin returns at the bottom right.
+- **Placement.** The photo sits inside the chrome trim without floating off the door or z-fighting with it.
+- **No leftover slots.** None of the old red squares show through.
+- **Info plate.** In the arc render, the info plate still does not cover the door.
+
+Describe each check in the report.
+
+- [ ] **Step 7: Build**
+
+```bash
+tools/remote.sh build
+```
+
+Expected: `Build OK`.
+
+---
+
+## Task 13: Deploy, document and hand over
 
 **Files:**
 - Modify: `README.md`
