@@ -178,5 +178,39 @@ namespace VRLauncher.Tests
             }
             Assert.AreEqual(2, slots);
         }
+
+        [Test]
+        public void CoinDoorPhoto_ReplacesTheBuiltInSlots()
+        {
+            CabinetView withPhoto = CabinetView.Create(host.transform, cache, Png("coindoor.png"));
+
+            Assert.IsTrue(withPhoto.CoinDoorPhotoVisible);
+            foreach (Transform child in withPhoto.transform)
+            {
+                if (child.name == "CoinSlot") Assert.IsFalse(child.gameObject.activeSelf);
+            }
+        }
+
+        [Test]
+        public void CoinDoorPhoto_MissingFile_KeepsTheBuiltInDoor()
+        {
+            CabinetView missing = CabinetView.Create(host.transform, cache, Path.Combine(dir, "nope.jpg"));
+
+            Assert.IsFalse(missing.CoinDoorPhotoVisible);
+            int litSlots = 0;
+            foreach (Transform child in missing.transform)
+            {
+                if (child.name == "CoinSlot" && child.gameObject.activeSelf) litSlots++;
+            }
+            Assert.AreEqual(2, litSlots);
+        }
+
+        [Test]
+        public void CoinDoor_IsLandscapeLikeTheRealPart()
+        {
+            Vector3 size = cabinet.transform.Find("CoinDoor").localScale;
+            Assert.AreEqual(0.35f, size.x, 1e-4f);
+            Assert.AreEqual(0.30f, size.y, 1e-4f);
+        }
     }
 }
