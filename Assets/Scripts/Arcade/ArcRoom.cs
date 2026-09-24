@@ -17,6 +17,9 @@ namespace VRLauncher
         /// <summary>The centred playfield sits this far below eye height, seated or standing.</summary>
         public const float HeadAbovePlayfield = 0.35f;
         public const float MaxScroll = 2f;
+
+        /// <summary>Soft magenta for the back wall neon, kept dim so it never competes with the art.</summary>
+        public static readonly Color NeonColor = new Color(0.62f, 0.07f, 0.46f);
         private const float ScrollSmoothTime = 0.08f;   // settles in about 0.25 s
         private const float VideoDelay = 0.3f;
         private static readonly Vector3 InfoPlateOffset = new Vector3(0f, 0.45f, -0.40f);
@@ -69,6 +72,7 @@ namespace VRLauncher
 
             Surface("Floor", Vector3.zero, Quaternion.Euler(90f, 0f, 0f), new Vector3(40f, 40f, 1f), new Color(0.03f, 0.03f, 0.04f), 0.8f);
             Surface("BackWall", new Vector3(0f, 3f, 6.5f), Quaternion.identity, new Vector3(30f, 8f, 1f), new Color(0.04f, 0.04f, 0.06f), 0.2f);
+            BuildNeon();
 
             // The centre slot never moves, so one spotlight on it is the "key light".
             Vector3 target = ArcLayout.SlotPosition(0f) + CabinetView.PlayfieldCenter;
@@ -302,6 +306,47 @@ namespace VRLauncher
             if (videoCabinet != null) videoCabinet.ShowStill();
             videoCabinet = null;
             videoPath = null;
+        }
+
+        private void BuildNeon()
+        {
+            // Unlit sprites rather than lights: it reads as neon without any lighting cost, and it
+            // stops drawing with the rest of the room while a table runs.
+            var neon = new Material(Shader.Find("Sprites/Default")) { name = "Neon", color = NeonColor };
+            var glow = new Material(Shader.Find("Sprites/Default"))
+            {
+                name = "NeonGlow",
+                color = new Color(NeonColor.r, NeonColor.g, NeonColor.b, 0.18f)
+            };
+
+            NeonQuad("NeonGlow", new Vector3(0f, 3.30f, 6.44f), new Vector3(12.4f, 0.30f, 1f), glow);
+            NeonQuad("NeonStrip", new Vector3(0f, 3.30f, 6.42f), new Vector3(12f, 0.04f, 1f), neon);
+
+            var signObject = new GameObject("NeonSign");
+            signObject.transform.SetParent(transform, false);
+            signObject.transform.localPosition = new Vector3(0f, 4.00f, 6.42f);
+            var sign = signObject.AddComponent<TextMeshPro>();
+            sign.text = "PINBALL";
+            sign.rectTransform.sizeDelta = new Vector2(4f, 0.8f);
+            sign.alignment = TextAlignmentOptions.Center;
+            sign.textWrappingMode = TextWrappingModes.NoWrap;
+            sign.enableAutoSizing = true;
+            sign.fontSizeMin = 1f;
+            sign.fontSizeMax = 20f;
+            sign.characterSpacing = 12f;
+            sign.color = NeonColor;
+        }
+
+        private void NeonQuad(string name, Vector3 position, Vector3 scale, Material material)
+        {
+            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            Collider collider = go.GetComponent<Collider>();
+            if (Application.isPlaying) Destroy(collider); else DestroyImmediate(collider);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = position;
+            go.transform.localScale = scale;
+            go.GetComponent<MeshRenderer>().sharedMaterial = material;
         }
 
         private void Surface(string name, Vector3 position, Quaternion rotation, Vector3 scale, Color color, float gloss)
