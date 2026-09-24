@@ -60,6 +60,26 @@ namespace VRLauncher.EditorTools
             });
         }
 
+        /// <summary>The whole room from a standing player's eyes, headset-like field of view.</summary>
+        public static void RenderArc()
+        {
+            Run("preview-arc.png", () =>
+            {
+                List<TableEntry> tables = LoadInstalledCatalog();
+                string stateFile = Path.Combine(Path.GetTempPath(), "vrl-preview-state.json");
+                if (File.Exists(stateFile)) File.Delete(stateFile);
+                LauncherState state = LauncherState.Load(stateFile);
+                var view = new TableListView(tables, state);
+                view.Select(tables.First(t => t.Media.Playfield != null).RelativePath);
+
+                var host = new GameObject("Preview");
+                ArcRoom room = ArcRoom.Create(view, state, host.AddComponent<MediaCache>());
+                var head = new Vector3(0f, 1.66f, 0f);
+                room.Recenter(head, 0f);
+                return MakeCamera(head, Quaternion.Euler(15f, 0f, 0f), 100f);
+            });
+        }
+
         /// <summary>Opens an empty scene, lets <paramref name="build"/> populate it and return a camera, renders, saves Logs/<paramref name="fileName"/>.</summary>
         public static void Run(string fileName, Func<Camera> build)
         {
