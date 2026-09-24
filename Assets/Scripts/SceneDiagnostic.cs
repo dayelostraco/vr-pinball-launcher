@@ -26,17 +26,17 @@ namespace VRLauncher
                 Debug.LogError("✗ No Main Camera found!");
             }
 
-            // Check for TableCarousel
-            TableCarousel carousel = FindFirstObjectByType<TableCarousel>();
-            if (carousel != null)
+            // Check for LauncherBootstrap
+            LauncherBootstrap bootstrap = FindFirstObjectByType<LauncherBootstrap>();
+            if (bootstrap != null)
             {
-                Debug.Log($"✓ TableCarousel found on: {carousel.gameObject.name}");
-                Debug.Log($"  Active: {carousel.gameObject.activeInHierarchy}");
-                Debug.Log($"  Enabled: {carousel.enabled}");
+                Debug.Log($"✓ LauncherBootstrap found on: {bootstrap.gameObject.name}");
+                Debug.Log($"  Active: {bootstrap.gameObject.activeInHierarchy}");
+                Debug.Log($"  Enabled: {bootstrap.enabled}");
             }
             else
             {
-                Debug.LogError("✗ No TableCarousel found in scene!");
+                Debug.LogError("✗ No LauncherBootstrap found in scene!");
             }
 
             // Check for Canvas
