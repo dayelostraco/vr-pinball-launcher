@@ -57,6 +57,18 @@ namespace VRLauncher
             }
         }
 
+        /// <summary>Removes an entry without invoking <c>onEvict</c>, for when ownership moves elsewhere.</summary>
+        public bool Remove(TKey key)
+        {
+            if (map.TryGetValue(key, out var node))
+            {
+                order.Remove(node);
+                map.Remove(key);
+                return true;
+            }
+            return false;
+        }
+
         public void Clear()
         {
             foreach (var pair in order)

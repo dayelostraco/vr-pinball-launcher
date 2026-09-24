@@ -333,7 +333,7 @@ namespace VRLauncher
             coinDoorPhoto = Quad("CoinDoorPhoto", CoinDoorCenter + new Vector3(0f, 0f, -0.0205f), Quaternion.identity,
                                  new Vector3(0.35f, 0.30f, 1f), coinDoorPhotoMaterial).gameObject;
             coinDoorPhoto.SetActive(false);
-            cache.Request(coinDoorImage, photo =>
+            cache.RequestPinned(coinDoorImage, photo =>
             {
                 if (this == null || photo == null) return;
                 coinDoorPhotoMaterial.mainTexture = photo;
