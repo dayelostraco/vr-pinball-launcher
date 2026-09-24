@@ -1,13 +1,13 @@
 # VR Pinball Launcher
 
-A Steam VR launcher for Visual Pinball tables that provides an immersive VR menu interface for browsing and launching your pinball table collection.
+A Steam VR launcher for Visual Pinball tables that puts you in a VR arcade room, browsing and launching your pinball table collection from cabinets on an arc in front of you.
 
 ## Features
 
-- **VR Menu Interface**: Browse your table collection in VR
+- **VR Arcade Room**: Browse your table collection as cabinets on an arc in VR
 - **Automatic Table Detection**: Scans directories for .vpx files
 - **Easy Table Launching**: Select and play tables with VPinballX_GL64.exe -play
-- **Seamless Return**: Menu reappears when table exits
+- **Seamless Return**: The room fades back in, on the same table, when it exits
 - **Configurable**: JSON configuration file for easy customization
 
 ## Requirements
@@ -79,9 +79,6 @@ Edit `launcher-config.json` in the same folder as the executable:
   "tablesDirectory": "C:\\Visual Pinball\\Tables",
   "searchSubdirectories": true,
   "wheelDirectory": "C:\\Visual Pinball\\Media\\Wheel",
-  "menuDistance": 2.0,
-  "menuHeight": 1.5,
-  "menuScale": 0.01,
   "showDebugConsole": false,
   "enableControllerBridge": false,
   "controllerBridgePath": "",
@@ -96,9 +93,7 @@ Edit `launcher-config.json` in the same folder as the executable:
 - **tablesDirectory**: Directory containing your .vpx table files
 - **searchSubdirectories**: Whether to search subdirectories for tables
 - **wheelDirectory**: Directory containing wheel images for tables (supports both absolute paths like `C:\\Visual Pinball\\Media\\Wheel` or relative paths like `Media\\Wheel`). Only the top level is scanned — `searchSubdirectories` applies to tables, not wheel art. Supported formats: PNG, JPG, JPEG. See [Table and Media Naming](#table-and-media-naming) for how images are matched to tables.
-- **menuDistance**: Distance (in meters) to position menu from camera
-- **menuHeight**: Height offset (in meters) for menu positioning
-- **menuScale**: Scale factor for the menu UI
+- **tableMediaDirectory**: Folder of per-table media fetched by `tools/fetch_media.py`, one subfolder per table (`wheel.png`, `table.png`, `bg.png`, `table.mp4`). Relative paths are relative to the launcher folder. Defaults to `Media\Tables`.
 - **showDebugConsole**: Show on-screen VR controller/button debug overlays (useful for troubleshooting). Defaults to `false`.
 - **enableControllerBridge**: Launch an external VR-controller input bridge when the launcher starts and stop it when the launcher exits. See [In-Game Controls](#in-game-controls-while-a-table-is-running). Defaults to `false`.
 - **controllerBridgePath**: Full path to the bridge executable to launch (e.g. the AutoHotkey executable, or a compiled bridge). Leave empty to disable.
@@ -163,7 +158,7 @@ track which build of a table you have, record it somewhere else — the per-tabl
 
 ### How matching actually works
 
-`TableScanner.LoadWheelImages()` tries three tiers in order and stops at the
+`WheelIndex` (used by `TableCatalog`) tries three tiers in order and stops at the
 first hit, so a correctly named table matches on tier 1:
 
 1. **exact** — basenames equal, ignoring case.
@@ -196,92 +191,145 @@ Look for `Matched wheel image for ...` on success, or
 `No wheel image for '<table>' (tried exact, normalized '...', title+year '...')`
 on failure. Compare the reported keys against your actual filenames.
 
+## Arcade Room
+
+Tables appear as cabinets standing on an arc in front of you, in the spirit of
+ES-DE on a handheld, rather than a flat list. Each cabinet has a backglass, a
+tilted playfield (with video on the centered cabinet only), a wheel marquee on
+a topper above the backbox, and a coin door on the front. The coin door shows
+a photo of a real Williams/Bally door when `Media\Cabinet\coindoor.jpg` exists
+next to the launcher; otherwise it uses a built-in door with two red lit
+slots. Browsing rotates the arc to the next or previous cabinet; the info
+plate under the centered cabinet shows the title, manufacturer and year, a
+star if it's a favorite, when it was last played, and the current view name
+and position.
+
+### Controls
+
+| Input | Action |
+|---|---|
+| Left / right trigger, thumbstick left / right | Previous / next table |
+| A | Launch |
+| B | Toggle favorite |
+| X | Cycle view: All, Favorites, Recent |
+| Hold Y 2 s | Quit (with countdown on the info plate) |
+| Keyboard Left Shift / Left Arrow | Previous table |
+| Keyboard Right Shift / Right Arrow | Next table |
+| Keyboard Enter / Space | Launch |
+| Keyboard F | Toggle favorite |
+| Keyboard V | Cycle view |
+| Keyboard Esc | Quit |
+
+`LauncherInput.cs` in `Assets/Scripts/Arcade/` is the ground truth for the
+mapping. The keyboard `F` and `V` keys exist alongside the controller buttons
+so the room can be exercised without a headset.
+
+### Favorites and Recent
+
+Pressing B (or keyboard F) toggles the current table as a favorite. Launching
+a table records the play, so it moves to the front of Recent, which lists
+only tables you've actually played, newest first. X (or keyboard V) cycles
+through the All, Favorites and Recent views; when the current view is empty
+(for example no favorites yet), the room shows one placeholder cabinet
+reading "No favorites yet" or "Nothing played yet", and cycling still works.
+
+### State file
+
+Favorites and play history are stored in `state.json` at
+`%USERPROFILE%\AppData\LocalLow\DefaultCompany\vr-launch\state.json`, keyed by
+each table's path relative to `tablesDirectory`. Renaming a table drops its
+history. If the file is damaged, it's renamed to `state.json.bad` and the
+launcher starts with an empty state rather than failing.
+
+### Media fallbacks
+
+| Missing | Shown instead |
+|---|---|
+| `table.mp4` | `table.png` |
+| `table.png` | Dark playfield with the wheel as a centered decal |
+| `bg.png` | Wheel, enlarged on a dark backbox |
+| Wheel | Title text on the topper |
+
+## Fetching Table Media
+
+`tools/fetch_media.py` downloads per-table wheel, playfield, backglass and
+table video art from VPinMediaDB into `Media\Tables\<Table Name>\`, matching
+each table to a VPS id from the Virtual Pinball Spreadsheet. Run it with:
+
+```
+uv run tools/fetch_media.py
+```
+
+By default it reads `tablesDirectory` from the installed launcher's
+`launcher-config.json`; pass `--config` to point at another one. Other flags:
+
+- `--dry-run`: report what would be fetched without downloading anything.
+- `--force "<Table Name>"`: re-download that one table's media even if files
+  already exist. Repeatable for more than one table.
+
+For a table whose filename doesn't match a VPS entry, add it to
+`tools/media-overrides.json` (`{"Table Name (Manufacturer Year)": "<VPS
+id>"}`).
+
+The script never overwrites an existing file unless `--force` names that
+table, and it never downloads ROMs.
+
 ## Setup in Unity
 
 ### Scene Setup
 
-1. Create a new scene or open `Assets/Scenes/VRLauncher.unity`
-2. Add the **VRLauncherManager** prefab to the scene
-3. Configure the Canvas UI:
+`Assets/Scenes/VRLauncher.unity` already has the arcade room wired up through
+**LauncherBootstrap**; there's no Canvas or per-item prefab to build by hand.
+The room, cabinets, coin doors and wheel toppers are built from primitives at
+runtime by `ArcRoom` and `CabinetView`.
 
-#### Create Menu Canvas
-
-1. **Create Canvas**:
-   - Right-click in Hierarchy > UI > Canvas
-   - Set **Render Mode** to **World Space**
-   - Set **Event Camera** to Main Camera
-
-2. **Create List Container**:
-   - Right-click Canvas > Create Empty
-   - Name it "ListContainer"
-   - Add **Vertical Layout Group** component
-   - Add **Content Size Fitter** component
-
-3. **Create Table Item Prefab**:
-   - Create UI > Button
-   - Add Text child for table name
-   - Save as prefab: `Assets/Prefabs/TableItem.prefab`
-
-4. **Create Status Text**:
-   - Create UI > Text
-   - Position at top of canvas
-   - Name it "StatusText"
-
-5. **Configure VRMenuController**:
-   - Select the VRLauncherManager object
-   - Drag Canvas to **Menu Canvas** field
-   - Drag ListContainer to **List Container** field
-   - Drag TableItem prefab to **Table Item Prefab** field
-   - Drag StatusText to **Status Text** field
+To migrate an older copy of the scene that still has the flat carousel
+Canvas, run the one-off editor method `VRLauncher.EditorTools.ArcadeSceneSetup.Run`
+(menu item **VR Launcher > Set Up Arcade Scene**, or headlessly via
+`tools/unity-batch.ps1`, see [Development](#development)). It removes the old
+Canvas and directional light, swaps `TableCarousel` for `LauncherBootstrap`,
+and is safe to run more than once.
 
 ### Script Components
 
 The project includes these main scripts:
 
-- **VRLauncherManager.cs**: Main manager (attach to root GameObject)
-- **VRMenuController.cs**: Handles VR menu UI
-- **TableScanner.cs**: Scans for .vpx files
+- **LauncherBootstrap.cs**: Main manager (attach to root GameObject); wires up the room, input and table launch/return flow
+- **LauncherConfig.cs / LauncherPaths.cs**: Configuration management
 - **TableLauncher.cs**: Launches Visual Pinball tables
-- **LauncherConfig.cs**: Configuration management
+- **ControllerBridge.cs**: Starts/stops the external in-game controller bridge
 - **UnityMainThreadDispatcher.cs**: Utility for thread-safe callbacks
+- **Assets/Scripts/Core** (`VRLauncher.Core`, plain C#, EditMode-testable): `TableCatalog` (scans for .vpx files and resolves media), `LauncherState` (favorites and play history), `TableListView` (view filtering, wrap-around, view cycling), `TableNaming`, `ArcLayout`, and related helpers
+- **Assets/Scripts/Arcade** (`VRLauncher.Arcade`, MonoBehaviours): `LauncherInput` (keyboard and XR controllers), `ArcRoom` (the room and cabinet slots), `CabinetView` (a single cabinet, coin door and topper), `MediaCache` (LRU texture loading), `ScreenFader` (fade to/from the table)
 
 ## Usage
 
 1. **Start SteamVR** if not already running
 2. **Put on your VR headset**
 3. **Launch the application**
-4. The menu will appear in front of you showing available tables
-5. **Point and click** on a table to launch it
-6. The menu will hide while the table is running
-7. When you exit the table, the menu reappears
+4. The arcade room appears in front of you, cabinets standing on an arc
+5. **Browse and launch** with the controls below
+6. The room fades out while the table is running
+7. When you exit the table, the room fades back in on the same table
 8. Press **Escape** to quit (desktop mode only)
 
 ## Controls
 
-### Menu Navigation (Carousel)
-
-- **VR Controllers**:
-  - **Left Trigger** — Previous table
-  - **Right Trigger** — Next table
-  - **A Button** (right controller) — Launch selected table
-  - **Y Button** (left controller), held 2 seconds — Quit the launcher
-- **Keyboard**:
-  - Left/Right Shift or Left/Right Arrow — Browse tables
-  - Enter/Space — Launch table
-  - Esc — Quit application
+See [Arcade Room](#arcade-room) above for the full browsing, favorite and quit
+controls (VR controllers and keyboard).
 
 **Y** is deliberately the same button that exits a table, so the rule is
 uniform: *Y exits whatever you are in* — table back to the launcher, launcher
 back to the desktop. It requires a hold rather than a tap so that a reflexive
 press on returning from a table doesn't close the launcher outright. The
-remaining time counts down in the menu while you hold, and releasing early
-cancels.
+remaining time counts down on the info plate while you hold, and releasing
+early cancels.
 
 Quitting is ignored while a table is running: there, Y belongs to VPX and
 exits the table. The launcher hands its XR session to VPinballX during play
 and cannot read the controllers at all, so the two uses can never overlap.
 
-Menu input is read through the XR Input System (OpenXR), so it works reliably with Quest/Touch and other OpenXR controllers.
+Room input is read through the XR Input System (OpenXR), so it works reliably with Quest/Touch and other OpenXR controllers.
 
 ### In-Game Controls (While a Table is Running)
 
@@ -306,7 +354,7 @@ The bundled bridge ([`auto_oculus_touch`](https://github.com/rajetic/auto_oculus
 | **Right Thumbstick** (pull back) | Plunger | Enter |
 
 **Notes**:
-- The bridge only sends keys while the **VPinballX window is focused**. This is why the triggers act as carousel navigation in the menu and as flippers in-game — there's no conflict.
+- The bridge only sends keys while the **VPinballX window is focused**. This is why the triggers act as arcade room navigation in the menu and as flippers in-game: there's no conflict.
 - Mappings assume VPinballX's default key bindings. If yours differ, check **VPX > Preferences > Configure Keys** and adjust the bridge script accordingly.
 - The bridge cannot run inside Unity (Unity hands its XR session to VPinballX during play); it must be a separate process, which is why the launcher spawns/kills it.
 
@@ -338,14 +386,13 @@ The bundled bridge ([`auto_oculus_touch`](https://github.com/rajetic/auto_oculus
 - **For Meta Quest users**: Enable both OpenXR and Oculus/Meta plugins
 - Test that your headset works in other SteamVR apps
 
-### Menu Not Visible
+### Room Not Visible
 
-- Check that Canvas is set to World Space render mode
-- Verify menuDistance and menuHeight values in config
-- Try adjusting menuScale (default 0.01)
-- Make sure camera has proper tracking
+- Check the Unity console / Player.log for scene load errors
+- Make sure camera has proper tracking so the room can anchor to the head position
+- The room re-centers on the head each time it appears, so a bad initial view usually clears on the next return from a table
 
-### Menu Doesn't Return After Exiting Table
+### Room Doesn't Return After Exiting Table
 
 - Check Unity console for process exit errors
 - Verify the table process actually exited
@@ -354,7 +401,7 @@ The bundled bridge ([`auto_oculus_touch`](https://github.com/rajetic/auto_oculus
 ### Controller Input Not Working in VPinballX
 
 **Understanding the Input System**:
-- Menu navigation reads the controllers directly via the XR Input System (OpenXR)
+- Arcade room navigation reads the controllers directly via the XR Input System (OpenXR)
 - In-game controls are provided by the external controller bridge (see [In-Game Controls](#in-game-controls-while-a-table-is-running)), which simulates keyboard input
 - VR controllers don't appear in Windows joy.cpl and VPinballX can't read them as joysticks (this is normal — hence the bridge)
 
@@ -376,15 +423,17 @@ vr-launch/
 │   ├── Scenes/
 │   │   └── VRLauncher.unity
 │   ├── Scripts/
-│   │   ├── VRLauncherManager.cs
-│   │   ├── VRMenuController.cs
-│   │   ├── TableScanner.cs
-│   │   ├── TableLauncher.cs
+│   │   ├── LauncherBootstrap.cs
 │   │   ├── LauncherConfig.cs
-│   │   └── UnityMainThreadDispatcher.cs
-│   └── Prefabs/
-│       ├── VRLauncherManager.prefab
-│       └── TableItem.prefab
+│   │   ├── LauncherPaths.cs
+│   │   ├── TableLauncher.cs
+│   │   ├── ControllerBridge.cs
+│   │   ├── UnityMainThreadDispatcher.cs
+│   │   ├── Core/           (VRLauncher.Core: TableCatalog, LauncherState, TableListView, ...)
+│   │   └── Arcade/         (VRLauncher.Arcade: LauncherInput, ArcRoom, CabinetView, MediaCache, ScreenFader)
+│   └── Editor/
+│       ├── ArcadeSceneSetup.cs
+│       └── ArcadePreview.cs
 └── launcher-config.json
 ```
 
@@ -425,11 +474,31 @@ To build by hand instead: File > Build Profiles, Windows platform, Intel
 
 To add new features:
 
-- **Custom table sorting**: Modify `TableScanner.cs`
-- **Table metadata**: Extend `TableInfo` class
+- **Custom table sorting**: Modify `TableCatalog.cs` / `TableListView.cs` (`Assets/Scripts/Core/`)
+- **Table metadata**: Extend `TableEntry.cs` (`Assets/Scripts/Core/`)
 - **Additional launch parameters**: Modify `TableLauncher.cs`
-- **Better UI**: Enhance the Canvas prefab
-- **Controller input**: Add input handling in `VRMenuController.cs`
+- **Room and cabinet look**: Modify `ArcRoom.cs` / `CabinetView.cs` (`Assets/Scripts/Arcade/`)
+- **Controller/keyboard input**: Add input handling in `LauncherInput.cs` (`Assets/Scripts/Arcade/`)
+
+### Testing and tooling
+
+- `test.ps1` runs the Unity EditMode tests headlessly and summarizes the
+  results; `-Filter <name>` runs a subset. Run it on the PC, or from the Mac
+  with `tools/remote.sh test [filter]`.
+- `tools/unity-batch.ps1 -Method <fully-qualified method>` runs a static
+  editor method in batchmode, used for one-off migrations and preview
+  renders. The two `ArcadePreview` methods
+  (`VRLauncher.EditorTools.ArcadePreview.RenderCabinets` and `.RenderArc`)
+  render preview screenshots of a cabinet and of the arc for reviewing
+  layout changes without putting on a headset. The scene migration method is
+  `VRLauncher.EditorTools.ArcadeSceneSetup.Run` (see
+  [Scene Setup](#scene-setup)). From the Mac: `tools/remote.sh batch
+  <Method>`.
+- `tools/remote.sh` drives the PC working copy from the Mac over SSH. Its
+  subcommands are `test`, `pytest`, `batch <Method>`, `build`, `deploy`,
+  `media` (runs `fetch_media.py`), `status`, `pull <path> <dest>` and
+  `pushback`. `test`, `pytest`, `batch`, `build`, `deploy` and `media` sync
+  the working copy first; `status`, `pull` and `pushback` do not.
 
 ## Credits
 
@@ -445,7 +514,10 @@ For issues and feature requests, please use the GitHub issues page.
 
 ## Tips
 
-- **Performance**: If menu lags, reduce number of visible tables or optimize prefab
-- **Positioning**: Adjust menuDistance/Height in config for comfort
+- **Performance**: If the room lags while browsing, check `MediaCache`'s texture
+  cache size and the size of your table media
+- **Comfort**: Playfield tilt, arc radius and info plate offset are constants
+  (`CabinetView.PlayfieldRotation`, `ArcLayout.Radius`,
+  `ArcRoom.InfoPlateOffset`) and easy to tune
 - **Large Collections**: Enable subdirectory search and organize tables in folders
-- **Quick Access**: Create shortcuts to favorite tables by organizing in subfolders
+- **Quick Access**: Mark tables as favorites (B or keyboard F) for one-view access

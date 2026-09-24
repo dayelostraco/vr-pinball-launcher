@@ -24,6 +24,9 @@ namespace VRLauncher
         [Tooltip("Directory containing wheel images (supports both relative and absolute paths)")]
         public string wheelDirectory = @"C:\Visual Pinball\Media\Wheel";
 
+        [Tooltip("Folder of per-table media fetched by tools/fetch_media.py, one subfolder per table (supports both relative and absolute paths)")]
+        public string tableMediaDirectory = @"Media\Tables";
+
         [Header("Menu Settings")]
         [Tooltip("Distance from camera to place menu")]
         public float menuDistance = 2.0f;
