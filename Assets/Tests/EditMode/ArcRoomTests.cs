@@ -127,5 +127,26 @@ namespace VRLauncher.Tests
             Assert.AreEqual(head.x + ArcLayout.Radius + CabinetView.PlayfieldCenter.z, playfield.x, 1e-4f);
             Assert.AreEqual(head.z, playfield.z, 1e-4f);
         }
+
+        [Test]
+        public void BackWall_HasAMagentaNeonStripAndSign()
+        {
+            Build(3);
+            Transform strip = room.transform.Find("NeonStrip");
+            Transform glow = room.transform.Find("NeonGlow");
+            Transform sign = room.transform.Find("NeonSign");
+            Assert.IsNotNull(strip);
+            Assert.IsNotNull(glow);
+            Assert.IsNotNull(sign);
+
+            Color neon = strip.GetComponent<MeshRenderer>().sharedMaterial.color;
+            Assert.Greater(neon.r, neon.g * 3f, "strip should read as magenta");
+            Assert.Greater(neon.b, neon.g * 3f, "strip should read as magenta");
+            Assert.AreEqual("PINBALL", sign.GetComponent<TMPro.TextMeshPro>().text);
+
+            // Behind the cabinets (backbox fronts are at about radius 2.2 + 1.3 m), in front of the wall.
+            Assert.Greater(strip.localPosition.z, 4f);
+            Assert.Less(strip.localPosition.z, 6.5f);
+        }
     }
 }
