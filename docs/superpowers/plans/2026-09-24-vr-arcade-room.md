@@ -5492,3 +5492,142 @@ Fix anything that shows up (with a test where the cause is in Core or Arcade cod
 - [ ] **Step 4: Finish the branch**
 
 Use superpowers:finishing-a-development-branch. Confirm the PR base with the user first (the fork's `master` tracks upstream and does not yet contain the PR #2 work this branch is built on). Reference issue #1 in the PR ("Closes #1"), and when it merges, move issue #1 to Done in GitHub Project #7.
+
+---
+
+## Task 14: Magenta neon on the back wall (added 2026-09-24 at the user's request)
+
+**Files:**
+- Modify: `Assets/Scripts/Arcade/ArcRoom.cs`, `Assets/Tests/EditMode/ArcRoomTests.cs`
+
+**Interfaces:**
+- Consumes: `ArcRoom.Build()` (Task 9), which already makes the `Floor` and `BackWall` surfaces. The back wall sits at room-local (0, 3, 6.5), is 30 m x 8 m, and faces the player.
+- Produces: child objects `NeonStrip`, `NeonGlow` and `NeonSign` under the room, and the constant `ArcRoom.NeonColor`. No public API changes.
+
+**What changes.** The room gets subtle magenta neon to give it an arcade feel while staying mostly dark:
+- **Strip:** a thin glowing strip runs along the back wall behind and above the cabinet toppers.
+- **Sign:** a "PINBALL" sign sits above the centre of the arc.
+- **Glow:** a wider, faint quad behind the strip fakes a bloom.
+- **Materials:** everything uses unlit `Sprites/Default`, which is already in the always-included shaders. No new lights, so there is no lighting cost.
+- **While a table runs:** everything is part of the room, so it stops drawing along with the rest of the room (background mode disables the camera).
+
+The user can reject the look after the preview or headset check. The work is one commit so it can be reverted cleanly.
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `Assets/Tests/EditMode/ArcRoomTests.cs`:
+
+```csharp
+        [Test]
+        public void BackWall_HasAMagentaNeonStripAndSign()
+        {
+            Build(3);
+            Transform strip = room.transform.Find("NeonStrip");
+            Transform glow = room.transform.Find("NeonGlow");
+            Transform sign = room.transform.Find("NeonSign");
+            Assert.IsNotNull(strip);
+            Assert.IsNotNull(glow);
+            Assert.IsNotNull(sign);
+
+            Color neon = strip.GetComponent<MeshRenderer>().sharedMaterial.color;
+            Assert.Greater(neon.r, neon.g * 3f, "strip should read as magenta");
+            Assert.Greater(neon.b, neon.g * 3f, "strip should read as magenta");
+            Assert.AreEqual("PINBALL", sign.GetComponent<TMPro.TextMeshPro>().text);
+
+            // Behind the cabinets (backbox fronts are at about radius 2.2 + 1.3 m), in front of the wall.
+            Assert.Greater(strip.localPosition.z, 4f);
+            Assert.Less(strip.localPosition.z, 6.5f);
+        }
+```
+
+`ArcRoomTests.cs` may need `using TMPro;` (or keep the fully qualified name as written). The test assembly already references `Unity.TextMeshPro` through `VRLauncher.Arcade`. If it doesn't compile, add `"Unity.TextMeshPro"` to the test asmdef references.
+
+```bash
+git add Assets/Tests && git commit -m "Add back wall neon test"
+tools/remote.sh test ArcRoomTests
+```
+
+Expected: FAIL, because `strip` is null.
+
+- [ ] **Step 2: Implement**
+
+In `ArcRoom.cs`, add the constant next to the others:
+
+```csharp
+        /// <summary>Soft magenta for the back wall neon, kept dim so it never competes with the art.</summary>
+        public static readonly Color NeonColor = new Color(0.62f, 0.07f, 0.46f);
+```
+
+At the end of the environment part of `Build()`, after the `BackWall` surface and before the lights, call `BuildNeon();`, and add:
+
+```csharp
+        private void BuildNeon()
+        {
+            // Unlit sprites rather than lights: it reads as neon without any lighting cost, and it
+            // stops drawing with the rest of the room while a table runs.
+            var neon = new Material(Shader.Find("Sprites/Default")) { name = "Neon", color = NeonColor };
+            var glow = new Material(Shader.Find("Sprites/Default"))
+            {
+                name = "NeonGlow",
+                color = new Color(NeonColor.r, NeonColor.g, NeonColor.b, 0.18f)
+            };
+
+            NeonQuad("NeonGlow", new Vector3(0f, 3.30f, 6.44f), new Vector3(12.4f, 0.30f, 1f), glow);
+            NeonQuad("NeonStrip", new Vector3(0f, 3.30f, 6.42f), new Vector3(12f, 0.04f, 1f), neon);
+
+            var signObject = new GameObject("NeonSign");
+            signObject.transform.SetParent(transform, false);
+            signObject.transform.localPosition = new Vector3(0f, 4.00f, 6.42f);
+            var sign = signObject.AddComponent<TextMeshPro>();
+            sign.text = "PINBALL";
+            sign.rectTransform.sizeDelta = new Vector2(4f, 0.8f);
+            sign.alignment = TextAlignmentOptions.Center;
+            sign.textWrappingMode = TextWrappingModes.NoWrap;
+            sign.enableAutoSizing = true;
+            sign.fontSizeMin = 1f;
+            sign.fontSizeMax = 20f;
+            sign.characterSpacing = 12f;
+            sign.color = NeonColor;
+        }
+
+        private void NeonQuad(string name, Vector3 position, Vector3 scale, Material material)
+        {
+            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            Collider collider = go.GetComponent<Collider>();
+            if (Application.isPlaying) Destroy(collider); else DestroyImmediate(collider);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = position;
+            go.transform.localScale = scale;
+            go.GetComponent<MeshRenderer>().sharedMaterial = material;
+        }
+```
+
+The glow sits 2 cm behind the strip, and both sit in front of the wall at z = 6.5, so nothing z-fights.
+
+- [ ] **Step 3: Run the tests to see them pass**
+
+```bash
+git add Assets
+git commit -m "Add a magenta neon strip and sign to the back wall"
+tools/remote.sh test
+```
+
+Expected: all tests pass (108).
+
+- [ ] **Step 4: Render and inspect**
+
+```bash
+tools/remote.sh batch VRLauncher.EditorTools.ArcadePreview.RenderArc
+tools/remote.sh pull Logs/preview-arc.png .superpowers/sdd/2026-09-24-vr-arcade-room/preview-arc-neon.png
+```
+
+Look at the render with Read. The strip and "PINBALL" should be visible behind and above the arc. They should be dim enough that the backglasses and playfields stay the brightest things in view, and they should not be hidden behind the toppers. If the sign is off-screen at the preview's 15-degree downward tilt, lower it slightly and re-render. Describe what you see in the report.
+
+- [ ] **Step 5: Build**
+
+```bash
+tools/remote.sh build
+```
+
+Expected: `Build OK`. Do not deploy.

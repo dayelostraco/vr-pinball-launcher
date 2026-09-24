@@ -27,7 +27,7 @@ Scope is the user's own setup (fork only): Windows PC, SteamVR/OpenXR, `D:\Visua
 
 ## 1. Room and controls
 
-**Room.** A dark arcade room: floor, back wall, soft spotlights. The centered cabinet gets a brighter key light; side cabinets are dimmer. The room is anchored to the head position at startup and re-centered each time the launcher returns from a table, so it works seated or standing.
+**Room.** A dark arcade room: floor, back wall with a dim magenta neon strip and "PINBALL" sign (added 2026-09-24), soft spotlights. The centered cabinet gets a brighter key light; side cabinets are dimmer. The room is anchored to the head position at startup and re-centered each time the launcher returns from a table, so it works seated or standing.
 
 **Arc.** 7 cabinet slots on an arc of radius about 2.2 m, spaced about 22 degrees apart, center slot straight ahead. Cabinets are life size (about 0.7 m wide, backbox top about 2.3 m). Each cabinet has a solid base under the tilted playfield, side rails along the playfield, a coin door on the front (a photo of a real Williams/Bally door when `Media\Cabinet\coindoor.jpg` is installed, otherwise a built-in door with two lit slots), and the wheel as a topper above the backbox (added 2026-09-24 after the first preview render). The playfield is tilted about 35 degrees toward the viewer, much steeper than a real machine, so its video is readable from the front. Browsing rotates the arc one slot in about 0.25 s with ease in/out. Holding the thumbstick repeats with acceleration. The list wraps around.
 
