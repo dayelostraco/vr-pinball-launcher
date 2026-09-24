@@ -28,11 +28,16 @@ namespace VRLauncher
         private bool launching;
         private bool quitNoticeShown;
         private TableEntry launchedEntry;
+        private Camera headCamera;
+        private bool inBackgroundMode;
+        private int previousVSyncCount;
+        private int previousTargetFrameRate;
 
         private void Start()
         {
             Application.runInBackground = true;
             Camera head = Camera.main;
+            headCamera = head;
             head.clearFlags = CameraClearFlags.SolidColor;
             head.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
 
@@ -136,6 +141,7 @@ namespace VRLauncher
             if (launcher.LaunchTable(entry.FullPath))
             {
                 launchedEntry = entry;
+                EnterBackgroundMode();
             }
             else
             {
@@ -147,6 +153,44 @@ namespace VRLauncher
             }
         }
 
+        /// <summary>
+        /// Stops the launcher from spending GPU time while a table runs. VPX ends our XR
+        /// session before it launches, but Unity keeps rendering the arcade room to the
+        /// desktop window regardless, which time-slices the GPU against VPX and Virtual
+        /// Desktop and adds latency the user feels in the headset. Disabling the camera
+        /// stops all GPU work; uncapping vsync and capping the frame rate at 60 keeps the
+        /// CPU loop bounded without starving it, because VRControllerInput still needs to
+        /// run every frame to map controller buttons to key presses for VPX.
+        /// </summary>
+        private void EnterBackgroundMode()
+        {
+            inBackgroundMode = true;
+            previousVSyncCount = QualitySettings.vSyncCount;
+            previousTargetFrameRate = Application.targetFrameRate;
+
+            headCamera.enabled = false;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 60;
+
+            Debug.Log("Background mode: rendering paused while the table runs");
+        }
+
+        /// <summary>
+        /// Restores normal rendering after a table exits. Safe to call when not in
+        /// background mode (a no-op), so OnTableExited can call it unconditionally.
+        /// </summary>
+        private void ExitBackgroundMode()
+        {
+            if (!inBackgroundMode) return;
+
+            headCamera.enabled = true;
+            QualitySettings.vSyncCount = previousVSyncCount;
+            Application.targetFrameRate = previousTargetFrameRate;
+            inBackgroundMode = false;
+
+            Debug.Log("Background mode: rendering resumed");
+        }
+
         private void OnTableExited()
         {
             // TableLauncher can raise this event twice for one exit (a synchronous call from
@@ -155,6 +199,10 @@ namespace VRLauncher
             // first call, so a second call is a no-op instead of double-recording the play or
             // starting a second, overlapping Arrive() coroutine.
             if (launchedEntry == null) return;
+
+            // Fader is already at alpha 1 here, so re-enabling the camera shows black first,
+            // then the fade-in in Arrive() reveals the room.
+            ExitBackgroundMode();
 
             state.RecordPlay(launchedEntry.RelativePath, DateTime.UtcNow);
             SaveState();
