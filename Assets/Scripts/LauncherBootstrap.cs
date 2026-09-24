@@ -141,22 +141,25 @@ namespace VRLauncher
             driver.trackingType = UnityEngine.InputSystem.XR.TrackedPoseDriver.TrackingType.RotationAndPosition;
             driver.updateType = UnityEngine.InputSystem.XR.TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
 
-            // TrackedPoseDriver's positionInput/rotationInput/trackingStateInput setters unbind the
-            // old action and bind the new one whenever the component is already active and enabled,
-            // and binding an action that has no InputActionReference (i.e. one we own directly, as
-            // here) enables that action as part of the bind. So assigning these properties after
-            // AddComponent is enough to get them enabled; the explicit enable checks below are a
-            // safety net in case that ever changes.
+            // TrackedPoseDriver's positionInput/rotationInput setters unbind the old action and bind
+            // the new one whenever the component is already active and enabled, and binding an
+            // action that has no InputActionReference (i.e. one we own directly, as here) enables
+            // that action as part of the bind. So assigning these properties after AddComponent is
+            // enough to get them enabled; the explicit enable checks below are a safety net in case
+            // that ever changes.
             driver.positionInput = new UnityEngine.InputSystem.InputActionProperty(
                 new UnityEngine.InputSystem.InputAction("Head Position", UnityEngine.InputSystem.InputActionType.Value, "<XRHMD>/centerEyePosition"));
             driver.rotationInput = new UnityEngine.InputSystem.InputActionProperty(
                 new UnityEngine.InputSystem.InputAction("Head Rotation", UnityEngine.InputSystem.InputActionType.Value, "<XRHMD>/centerEyeRotation"));
-            driver.trackingStateInput = new UnityEngine.InputSystem.InputActionProperty(
-                new UnityEngine.InputSystem.InputAction("Head Tracking State", UnityEngine.InputSystem.InputActionType.Value, "<XRHMD>/trackingState"));
 
+            // trackingStateInput is deliberately left unbound. If the OpenXR runtime (Virtual
+            // Desktop) ever reports <XRHMD>/trackingState as 0 or leaves it unset, a bound driver
+            // would treat the pose as invalid and freeze the camera again, i.e. exactly the bug this
+            // change fixes. With trackingStateInput unbound, TrackedPoseDriver's default
+            // m_CurrentTrackingState (Position | Rotation) always treats the pose as valid, so
+            // tracking follows positionInput/rotationInput unconditionally.
             if (!driver.positionInput.action.enabled) driver.positionInput.action.Enable();
             if (!driver.rotationInput.action.enabled) driver.rotationInput.action.Enable();
-            if (!driver.trackingStateInput.action.enabled) driver.trackingStateInput.action.Enable();
 
             Debug.Log($"Head tracking: TrackedPoseDriver on {head.name}");
         }
