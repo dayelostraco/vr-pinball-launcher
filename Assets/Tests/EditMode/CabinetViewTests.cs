@@ -42,13 +42,13 @@ namespace VRLauncher.Tests
             new TableEntry("Congo (Williams 1995).vpx", @"C:\t\Congo (Williams 1995).vpx", "Congo (Williams 1995)", "Congo", "Williams", 1995, media);
 
         [Test]
-        public void FullMedia_ShowsPlayfieldBackglassAndApronWheel()
+        public void FullMedia_ShowsPlayfieldBackglassAndTopper()
         {
             cabinet.SetEntry(Entry(new MediaSet { Wheel = Png("w.png"), Playfield = Png("p.png"), Backglass = Png("b.png") }));
 
             Assert.AreNotSame(CabinetView.DarkTexture, cabinet.PlayfieldTexture);
             Assert.AreNotSame(CabinetView.DarkTexture, cabinet.BackglassTexture);
-            Assert.IsTrue(cabinet.ApronWheelVisible);
+            Assert.IsTrue(cabinet.TopperVisible);
             Assert.IsFalse(cabinet.WheelDecalVisible);
             Assert.IsNull(cabinet.MarqueeText);
         }
@@ -76,7 +76,7 @@ namespace VRLauncher.Tests
         {
             cabinet.SetEntry(Entry(new MediaSet { Playfield = Png("p.png") }));
             Assert.AreEqual("Congo", cabinet.MarqueeText);
-            Assert.IsFalse(cabinet.ApronWheelVisible);
+            Assert.IsFalse(cabinet.TopperVisible);
         }
 
         [Test]
@@ -119,6 +119,64 @@ namespace VRLauncher.Tests
             Vector3 normal = CabinetView.PlayfieldRotation * Vector3.back;
             Assert.Greater(normal.y, 0.5f);
             Assert.Less(normal.z, -0.3f);
+        }
+
+        [Test]
+        public void Wedge_FacesPointOutward()
+        {
+            Mesh mesh = CabinetMesh.Wedge(0.72f, 0.078f, 1.08f, 0.96f, 1.66f);
+            Vector3[] vertices = mesh.vertices;
+            int[] triangles = mesh.triangles;
+            Vector3 inside = Vector3.zero;
+            foreach (Vector3 vertex in vertices) inside += vertex;
+            inside /= vertices.Length;
+
+            Assert.AreEqual(8, triangles.Length / 3);   // 2 side triangles + 3 quads
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                Vector3 a = vertices[triangles[i]], b = vertices[triangles[i + 1]], c = vertices[triangles[i + 2]];
+                Vector3 normal = Vector3.Cross(b - a, c - a);
+                Assert.Greater(Vector3.Dot(normal, (a + b + c) / 3f - inside), 0f, $"triangle {i / 3} faces inward");
+            }
+            UnityEngine.Object.DestroyImmediate(mesh);
+        }
+
+        [Test]
+        public void PlayfieldBase_FillsTheGapJustUnderThePlayfield()
+        {
+            Transform wedge = cabinet.transform.Find("PlayfieldBase");
+            Assert.IsNotNull(wedge);
+            Assert.IsNull(cabinet.transform.Find("HeadSupport"));
+
+            Vector3 normal = CabinetView.PlayfieldRotation * Vector3.back;
+            float highest = float.MinValue;
+            foreach (Vector3 vertex in wedge.GetComponent<MeshFilter>().sharedMesh.vertices)
+            {
+                float above = Vector3.Dot(vertex - CabinetView.PlayfieldCenter, normal);
+                Assert.LessOrEqual(above, 0.001f, "wedge pokes through the playfield");
+                highest = Mathf.Max(highest, above);
+            }
+            Assert.Greater(highest, -0.02f, "wedge leaves a visible gap under the playfield");
+        }
+
+        [Test]
+        public void Playfield_HasSideRails()
+        {
+            Assert.IsNotNull(cabinet.transform.Find("RailLeft"));
+            Assert.IsNotNull(cabinet.transform.Find("RailRight"));
+        }
+
+        [Test]
+        public void Front_HasACoinDoorWithTwoLitSlots()
+        {
+            Assert.IsNotNull(cabinet.transform.Find("CoinDoor"));
+            Assert.IsNotNull(cabinet.transform.Find("CoinDoorTrim"));
+            int slots = 0;
+            foreach (Transform child in cabinet.transform)
+            {
+                if (child.name == "CoinSlot") slots++;
+            }
+            Assert.AreEqual(2, slots);
         }
     }
 }
