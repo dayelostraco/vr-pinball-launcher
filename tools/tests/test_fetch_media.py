@@ -12,6 +12,7 @@ _spec.loader.exec_module(fm)
 DB = [
     {"id": "afm1", "name": "Attack from Mars", "manufacturer": "Bally", "year": 1995},
     {"id": "t2", "name": "Terminator 2: Judgment Day", "manufacturer": "Williams", "year": 1991},
+    {"id": "im", "name": "Iron Man (Pro Vault Edition)", "manufacturer": "Stern", "year": 2014},
 ]
 AFM = "Attack from Mars (Bally 1995)"
 T2 = "Terminator 2 (Williams 1991)"
@@ -65,6 +66,14 @@ def run(setup, *extra, get=None):
 
 def test_match_by_name_manufacturer_and_year():
     assert fm.match(DB, AFM)["id"] == "afm1"
+
+
+def test_match_title_with_parentheses():
+    assert fm.match(DB, "Iron Man (Pro Vault Edition) (Stern 2014)")["id"] == "im"
+
+
+def test_match_ignores_text_after_year_group():
+    assert fm.match(DB, "Attack from Mars (Bally 1995) VPW 2.0")["id"] == "afm1"
 
 
 def test_match_uses_override():
