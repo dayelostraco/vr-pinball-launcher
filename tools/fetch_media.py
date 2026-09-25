@@ -53,7 +53,9 @@ def norm(s):
 def match(db, stem, overrides=None):
     if overrides and stem in overrides:
         return next((g for g in db if g.get("id") == overrides[stem]), None)
-    m = re.match(r"^(.*?)\s*\((.+?)\s+(\d{4})\)", stem)
+    # Greedy title, so a title with its own parentheses ("Iron Man (Pro Vault Edition)") still
+    # pairs with the last "(Manufacturer Year)" group.
+    m = re.match(r"^(.*)\s*\(([^()]+?)\s+(\d{4})\)", stem)
     if not m:
         return None
     name, manufacturer, year = norm(m.group(1)), m.group(2).lower(), int(m.group(3))
