@@ -15,6 +15,12 @@ namespace VRLauncher
         [Tooltip("Path to VPinballX_GL64.exe")]
         public string vpinballExecutable = @"C:\Visual Pinball\VPinballX_GL64.exe";
 
+        [Tooltip("Extra VPX installs (e.g. 10.8.0) that tables can be assigned to in tableProfiles")]
+        public VpxProfile[] vpxProfiles = new VpxProfile[0];
+
+        [Tooltip("Tables (file name without .vpx) that launch with a vpxProfiles install instead of vpinballExecutable")]
+        public TableProfile[] tableProfiles = new TableProfile[0];
+
         [Tooltip("Directory containing .vpx table files")]
         public string tablesDirectory = @"C:\Visual Pinball\Tables";
 

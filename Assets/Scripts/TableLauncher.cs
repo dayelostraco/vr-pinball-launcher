@@ -56,6 +56,9 @@ namespace VRLauncher
         [Tooltip("Time in seconds to wait before attempting to focus the VP window")]
         public float focusDelaySeconds = 2.0f;
 
+        private VpxProfile[] vpxProfiles = new VpxProfile[0];
+        private TableProfile[] tableProfiles = new TableProfile[0];
+
         private Process currentProcess;
         private bool backspaceWasPressed = false;
         private bool isTableRunning = false;
@@ -78,9 +81,10 @@ namespace VRLauncher
                 return false;
             }
 
-            if (!File.Exists(vpinballExecutable))
+            LaunchCommand command = VpxProfiles.Resolve(tablePath, vpinballExecutable, vpxProfiles, tableProfiles);
+            if (!File.Exists(command.Executable))
             {
-                UnityEngine.Debug.LogError($"VPinballX executable not found: {vpinballExecutable}");
+                UnityEngine.Debug.LogError($"VPinballX executable not found: {command.Executable}");
                 return false;
             }
 
@@ -100,11 +104,14 @@ namespace VRLauncher
 
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
-                    FileName = vpinballExecutable,
-                    Arguments = $"-Play \"{tablePath}\"",
+                    FileName = command.Executable,
+                    Arguments = command.Arguments,
                     UseShellExecute = false,
-                    WorkingDirectory = Path.GetDirectoryName(vpinballExecutable)
+                    WorkingDirectory = command.WorkingDirectory
                 };
+
+                if (command.ProfileName != null)
+                    UnityEngine.Debug.Log($"Using VPX profile '{command.ProfileName}' for this table");
 
                 UnityEngine.Debug.Log($"Launching table: {Path.GetFileName(tablePath)}");
                 UnityEngine.Debug.Log($"Command: {startInfo.FileName} {startInfo.Arguments}");
@@ -175,8 +182,12 @@ namespace VRLauncher
             // Load configuration
             LauncherConfig config = LauncherConfig.Instance;
             vpinballExecutable = config.vpinballExecutable;
+            vpxProfiles = config.vpxProfiles ?? new VpxProfile[0];
+            tableProfiles = config.tableProfiles ?? new TableProfile[0];
 
             UnityEngine.Debug.Log($"TableLauncher configured to use VPinballX at: {vpinballExecutable}");
+            foreach (TableProfile entry in tableProfiles)
+                UnityEngine.Debug.Log($"Table '{entry.table}' uses VPX profile '{entry.profile}'");
         }
 
         void Update()

@@ -100,6 +100,28 @@ Edit `launcher-config.json` in the same folder as the executable:
 - **controllerBridgeArgs**: Command-line arguments for the bridge (e.g. the quoted full path to the AutoHotkey script).
 - **controllerBridgeWorkingDir**: Working directory for the bridge process. Leave empty to use the executable's folder. For the AutoHotkey script, set this to the folder containing `auto_oculus_touch.dll` so the script can load it.
 
+### Running some tables on a different VPX version
+
+Some tables only work on an older VPX (for example 10.8.0). Define each extra install in `vpxProfiles`, then assign tables to it in `tableProfiles` by file name without `.vpx` (case-insensitive). Every other table uses `vpinballExecutable`.
+
+```json
+"vpxProfiles": [
+  {
+    "name": "10.8.0",
+    "executable": "D:\\Visual Pinball Legacy\\VPinballX_GL64.exe",
+    "iniFile": "D:\\Visual Pinball Legacy\\VPinballX-legacy.ini",
+    "workingDirectory": "table"
+  }
+],
+"tableProfiles": [
+  { "table": "Stranger Things (Original 2020)", "profile": "10.8.0" }
+]
+```
+
+- **iniFile**: optional; passed to VPX as `-Ini`. Leave empty for that install's default settings.
+- **workingDirectory**: empty uses the executable's folder, `"table"` uses the table's folder (needed by tables that load files relative to the working directory), or give a full path.
+- A table assigned to an undefined profile name falls back to `vpinballExecutable`. The launcher log names the profile used for each launch.
+
 ## Table and Media Naming
 
 Wheel art is matched to tables by filename. The launcher is tolerant of the
