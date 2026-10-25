@@ -1,0 +1,13 @@
+{
+  "vpinballExecutable": "C:\\Visual Pinball\\VPinballX_BGFX64.exe",
+  "realVpinballExecutable": "",
+  "tablesDirectory": "C:\\Visual Pinball\\Tables",
+  "searchSubdirectories": true,
+  "wheelDirectory": "Media\\Wheel",
+  "tableMediaDirectory": "Media\\Tables",
+  "showDebugConsole": false,
+  "enableControllerBridge": false,
+  "controllerBridgePath": "",
+  "controllerBridgeArgs": "",
+  "controllerBridgeWorkingDir": ""
+}

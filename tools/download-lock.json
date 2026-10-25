@@ -1,0 +1,20 @@
+{
+  "vpx": {
+    "version": "10.8.1-5436-af26b2d93",
+    "url": "https://github.com/vpinball/vpinball/releases/download/v10.8.1-5436-af26b2d93/VPinballX_GL-10.8.1-5436-af26b2d93-windows-x64-Release.zip",
+    "sha256": "2b63ab6b3c30c4a36850b75d011a2ea4685d3342ea5f69964d0fd7ad5e99a2ef",
+    "provenance": "GitHub release asset SHA-256, checked 2026-10-24"
+  },
+  "vpinmame": {
+    "version": "3.7.0-477-6589fc5",
+    "url": "https://github.com/vpinball/pinmame/releases/download/v3.7.0-477-6589fc5/VPinMAME-3.7.0-477-6589fc5-win-x64.zip",
+    "sha256": "219b83ecd800b92c46c92af9b8261966eaa567023cfc6dc6f242fc62e89144f9",
+    "provenance": "GitHub release asset SHA-256, checked 2026-10-24"
+  },
+  "autohotkey": {
+    "version": "1.1.37.02",
+    "url": "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02_setup.exe",
+    "sha256": "49a48e879f7480238d2fe17520ac19afe83685aac0b886719f9e1eac818b75cc",
+    "provenance": "Official GitHub release, identical SHA-256 to autohotkey.com versioned download; verified 2026-10-24; installer is unsigned"
+  }
+}

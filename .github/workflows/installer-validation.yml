@@ -1,0 +1,66 @@
+name: Installer validation (trusted candidate)
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Draft validation release tag containing the candidate installer
+        required: true
+        type: string
+      sha256:
+        description: Independently recorded SHA-256 of the candidate installer
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  candidate:
+    if: github.actor == github.repository_owner
+    permissions:
+      contents: write # Draft releases require push access; this job never executes the package.
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download and verify the reviewed draft
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.release_tag }}
+          CANDIDATE_SHA256: ${{ inputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:CANDIDATE_TAG -notmatch '^validation-[a-zA-Z0-9._-]+$') { throw 'Expected a validation draft tag.' }
+          if ($env:CANDIDATE_SHA256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid installer digest.' }
+          $release = gh release view $env:CANDIDATE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft | ConvertFrom-Json
+          if ($LASTEXITCODE -or !$release.isDraft) { throw 'Candidate must be an existing draft release.' }
+          $directory = Join-Path $env:RUNNER_TEMP 'reviewed-candidate'
+          gh release download $env:CANDIDATE_TAG --repo $env:GITHUB_REPOSITORY --pattern VRPinballLauncher-Setup.exe --dir $directory
+          if ($LASTEXITCODE) { throw 'Candidate download failed.' }
+          if ((Get-FileHash -LiteralPath (Join-Path $directory 'VRPinballLauncher-Setup.exe')).Hash -ine $env:CANDIDATE_SHA256) { throw 'Installer SHA-256 mismatch.' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: reviewed-candidate
+          path: ${{ runner.temp }}/reviewed-candidate/VRPinballLauncher-Setup.exe
+          retention-days: 7
+  clean-account:
+    needs: candidate
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: reviewed-candidate
+          path: ${{ runner.temp }}/reviewed-candidate
+      - name: Validate in a clean account without write credentials
+        shell: powershell
+        env:
+          CANDIDATE_SHA256: ${{ inputs.sha256 }}
+        run: |
+          ./tools/test-clean-install.ps1 -InstallerFile (Join-Path $env:RUNNER_TEMP 'reviewed-candidate/VRPinballLauncher-Setup.exe') -ExpectedSha256 $env:CANDIDATE_SHA256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: clean-install-evidence
+          path: Logs/clean-install/

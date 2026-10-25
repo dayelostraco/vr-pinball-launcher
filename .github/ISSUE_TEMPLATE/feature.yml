@@ -1,0 +1,29 @@
+name: Feature or improvement
+description: Suggest a feature, usability improvement, accessibility change, or documentation fix
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the situation and what currently gets in your way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Your suggestion
+      description: Explain the behavior you would find useful. Alternatives and sketches are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Relevant setup
+      description: Headset, controller, VPX version, or library details if they matter. Omit private paths and files.
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Optional help
+      options:
+        - label: I can help test this with my setup.
+        - label: I would like to contribute code or documentation.

@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {"name":"default relative paths","runner":"VPX\\VPinballX_BGFX64.exe","table":"Tables\\Sample.vpx","profileName":"","profileRunner":"","ini":"","working":"","assignment":"","expectedRunner":"VPX\\VPinballX_BGFX64.exe","expectedWorking":"VPX","expectedIni":"","expectedProfile":""},
+    {"name":"case insensitive assignment and table working folder","runner":"VPX\\VPinballX_BGFX64.exe","table":"Tables\\Sample.vpx","profileName":"Legacy","profileRunner":"Legacy\\VPinballX_GL64.exe","ini":"Settings\\legacy.ini","working":"TABLE","assignment":"legacy","expectedRunner":"Legacy\\VPinballX_GL64.exe","expectedWorking":"Tables","expectedIni":"Settings\\legacy.ini","expectedProfile":"Legacy"},
+    {"name":"custom relative working directory","runner":"VPX\\VPinballX_BGFX64.exe","table":"Tables\\Sample.vpx","profileName":"Custom","profileRunner":"Helpers\\Host.exe","ini":"","working":"Data","assignment":"Custom","expectedRunner":"Helpers\\Host.exe","expectedWorking":"Data","expectedIni":"","expectedProfile":"Custom"},
+    {"name":"undefined profile falls back","runner":"VPX\\VPinballX_BGFX64.exe","table":"Tables\\Sample.vpx","profileName":"Legacy","profileRunner":"Legacy\\VPinballX_GL64.exe","ini":"","working":"","assignment":"Unknown","expectedRunner":"VPX\\VPinballX_BGFX64.exe","expectedWorking":"VPX","expectedIni":"","expectedProfile":""},
+    {"name":"profile executable folder default","runner":"VPX\\VPinballX_BGFX64.exe","table":"Tables\\Sample.vpx","profileName":"Legacy","profileRunner":"Legacy\\VPinballX_GL64.exe","ini":"","working":"","assignment":"Legacy","expectedRunner":"Legacy\\VPinballX_GL64.exe","expectedWorking":"Legacy","expectedIni":"","expectedProfile":"Legacy"}
+  ]
+}

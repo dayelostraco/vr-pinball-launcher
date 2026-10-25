@@ -1,0 +1,6 @@
+{
+    "name": "VRLauncher.Runtime",
+    "rootNamespace": "VRLauncher",
+    "references": ["VRLauncher.Core", "VRLauncher.Arcade", "Unity.InputSystem", "Unity.XR.Management", "Unity.TextMeshPro"],
+    "autoReferenced": true
+}

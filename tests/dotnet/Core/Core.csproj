@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>VRLauncher.Portable</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- These are the production files, not reimplementations or Unity stubs. -->
+    <Compile Include="../../../Assets/Scripts/Core/*.cs"
+             Exclude="../../../Assets/Scripts/Core/ArcLayout.cs" />
+    <Compile Include="../../../tools/VpxBackgroundInput.cs" />
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

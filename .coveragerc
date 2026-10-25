@@ -1,0 +1,12 @@
+[run]
+branch = True
+source = tools
+omit = tools/tests/*
+data_file = Logs/.coverage
+
+[report]
+show_missing = True
+fail_under = 80
+
+[json]
+output = Logs/python-coverage.json

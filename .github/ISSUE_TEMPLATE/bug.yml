@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible problem in this fork
+body:
+  - type: markdown
+    attributes:
+      value: Please omit ROMs, table files, credentials and personal backup ZIPs. Include only relevant log excerpts.
+  - type: input
+    id: version
+    attributes:
+      label: Launcher version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, VPX version/build, headset, active OpenXR runtime, controller and any helper/profile.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, expected behavior and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Player.log or VPX log excerpts
+      description: See docs/testing.md for locations. Remove personal paths if desired.
+      render: text

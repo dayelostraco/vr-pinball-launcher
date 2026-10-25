@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "files": [
+    {
+      "path": "ControllerBridge/auto_oculus_touch.dll",
+      "sha256": "3412c3f96f102967652defd379b8185ffbfd549069049c61ce673f7acc1b18a2",
+      "machine": "amd64",
+      "source": "https://raw.githubusercontent.com/keithbphillips/vr-pinball-launcher/b5a7edc757422032b6a873714ee6a74fca6bcb3a/ControllerBridge/auto_oculus_touch.dll",
+      "provenance": "Inherited original launcher binary; exact upstream bytes verified. No reproducible source-build attestation."
+    },
+    {
+      "path": "ControllerBridge/vJoyInterface.dll",
+      "sha256": "4a48db89c3158cf54aca298d77f9a14579ab11acc648199e474c1092e7ee5944",
+      "machine": "amd64",
+      "source": "https://raw.githubusercontent.com/rajetic/auto_oculus_touch/2ff09c79533f3b99cb742a013ba55c07f37c1642/bin/vJoyInterface.dll",
+      "provenance": "Exact upstream AutoOculusTouch dependency bytes; no vJoy driver installed."
+    }
+  ]
+}
