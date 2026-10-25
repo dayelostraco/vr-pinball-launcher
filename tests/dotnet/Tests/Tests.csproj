@@ -9,7 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../Core/Core.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit" Version="5.0.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
     <PackageReference Include="coverlet.msbuild" Version="10.1.0" PrivateAssets="all" />
     <Compile Include="../../../Assets/Tests/EditMode/InputLogicTests.cs;../../../Assets/Tests/EditMode/HeldKeyTests.cs;../../../Assets/Tests/EditMode/FileUriTests.cs;../../../Assets/Tests/EditMode/LruCacheTests.cs;../../../Assets/Tests/EditMode/LaunchFeedbackTests.cs;../../../Assets/Tests/EditMode/RelativeTimeTests.cs;../../../Assets/Tests/EditMode/TableNamingTests.cs;../../../Assets/Tests/EditMode/VpxProfilesTests.cs;../../../Assets/Tests/EditMode/TableCatalogTests.cs;../../../Assets/Tests/EditMode/FakeFileSystem.cs" />
